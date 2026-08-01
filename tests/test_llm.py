@@ -1,8 +1,13 @@
 from types import SimpleNamespace
+
+import pytest
+
 from app.llm_client import LLMClient
 
 
-
+class TimeoutLLM:
+    def invoke(self, prompt):
+        raise TimeoutError("模型调用超时")
 
 class FakeLLM:
     def __init__(self):
@@ -24,3 +29,9 @@ def test_chat_passes_prompt_and_returns_content():
     result = client.chat("测试问题")
     assert fake_llm.last_prompt == "测试问题"
     assert result == "珠穆朗玛峰"
+
+def test_chat_propagates_timeout_error():
+    timeout_llm = TimeoutLLM()
+    client = LLMClient(timeout_llm)
+    with pytest.raises(TimeoutError, match="模型调用超时"):
+        client.chat("测试")
