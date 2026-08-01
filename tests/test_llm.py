@@ -35,3 +35,11 @@ def test_chat_propagates_timeout_error():
     client = LLMClient(timeout_llm)
     with pytest.raises(TimeoutError, match="模型调用超时"):
         client.chat("测试")
+
+@pytest.mark.parametrize("invalid_prompt", ["", " ", "\t", "\n", None])
+def test_chat_rejects_empty_prompt(invalid_prompt):
+    fake_llm = FakeLLM()
+    client = LLMClient(fake_llm)
+    with pytest.raises(ValueError, match="prompt不能为空"):
+        client.chat(invalid_prompt)
+    assert fake_llm.last_prompt is None
