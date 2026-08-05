@@ -22,7 +22,7 @@ def main():
 
     client = LLMClient(chat_model)
 
-    answer = client.chat("世界上最高的山峰是哪个？")
+    answer = client.chat("付航的生日是哪天？")
 
     print(answer)
 

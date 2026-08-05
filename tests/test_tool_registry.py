@@ -29,7 +29,7 @@ def test_leave_balance_tool_has_expected_schema():
     assert set(schema["required"]) == {"employee_id"}
     assert schema["properties"]["employee_id"]["type"] == "string"
 
-# 注册工具执行测试
+
 def test_registered_tools_invoke_underlying_functions():
     tools_by_name = {tool.name: tool for tool in build_tools()}
     multiply_result = tools_by_name["multiply_numbers"].invoke(
