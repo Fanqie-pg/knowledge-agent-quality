@@ -1,0 +1,10 @@
+{"case_id":"RET-001","question":"P1工单需要在多长时间内首次响应？","relevant_doc_ids":["KB-PRODUCT-001"],"reference_answer":"P1工单应在15分钟内首次响应。","answerable":true,"category":"single_doc","difficulty":"easy"}
+{"case_id":"RET-002","question":"账号连续输错几次密码会被锁定，锁定多久？","relevant_doc_ids":["KB-FAQ-001"],"reference_answer":"连续输入错误密码5次后，账号会被锁定30分钟。","answerable":true,"category":"single_doc","difficulty":"easy"}
+{"case_id":"RET-003","question":"P1故障处理期间需要多久更新一次进展？","relevant_doc_ids":["KB-SOP-001"],"reference_answer":"从首次响应到服务恢复之前，故障负责人至少每30分钟更新一次处理进度。","answerable":true,"category":"single_doc","difficulty":"easy"}
+{"case_id":"RET-004","question":"创建工单时如何防止网络重试产生重复工单？","relevant_doc_ids":["KB-API-001"],"reference_answer":"创建工单时传递X-Idempotency-Key请求头；同一令牌和同一幂等键在24小时内重复请求不会创建新工单。","answerable":true,"category":"single_doc","difficulty":"medium"}
+{"case_id":"RET-005","question":"今年没用完的年假最多能结转几天，最晚什么时候用完？","relevant_doc_ids":["KB-HR-001"],"reference_answer":"最多可以结转5天，并应在下一年度3月31日之前使用。","answerable":true,"category":"single_doc","difficulty":"easy"}
+{"case_id":"RET-006","question":"P1工单多久必须首次响应，处理过程中又要多久同步一次进展？","relevant_doc_ids":["KB-PRODUCT-001","KB-SOP-001"],"reference_answer":"P1工单应在15分钟内首次响应；从首次响应到服务恢复之前，至少每30分钟更新一次处理进度。","answerable":true,"category":"multi_doc","difficulty":"hard"}
+{"case_id":"RET-007","question":"登录口令连续写错多少回会被封？多长时间后自己恢复？","relevant_doc_ids":["KB-FAQ-001"],"reference_answer":"连续输错5次会被锁定，30分钟后自动解锁。","answerable":true,"category":"paraphrase","difficulty":"medium"}
+{"case_id":"RET-008","question":"接口返回401和403分别表示什么？","relevant_doc_ids":["KB-API-001"],"reference_answer":"401表示访问令牌无效或已过期；403表示身份有效，但没有相应操作权限。","answerable":true,"category":"single_doc","difficulty":"medium"}
+{"case_id":"RET-009","question":"首次响应是不是代表问题已经彻底解决？","relevant_doc_ids":["KB-PRODUCT-001"],"reference_answer":"不是。首次响应只表示IT服务人员已经受理并开始跟进，不等同于问题最终解决。","answerable":true,"category":"paraphrase","difficulty":"medium"}
+{"case_id":"RET-010","question":"公司差旅报销发票最晚应在几号前提交？","relevant_doc_ids":[],"reference_answer":null,"answerable":false,"category":"unanswerable","difficulty":"medium"}
