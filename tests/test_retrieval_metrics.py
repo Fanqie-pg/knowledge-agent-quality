@@ -1,6 +1,6 @@
 import pytest
 
-from app.retrieval_metrics import recall_at_k, reciprocal_rank, mean_reciprocal_rank
+from app.retrieval_metrics import recall_at_k, reciprocal_rank, mean_reciprocal_rank, evidence_recall_at_k
 
 
 def test_recall_at_k_returns_one():
@@ -119,3 +119,20 @@ def test_mean_reciprocal_rank_rejects_mismatched_case_count():
                 ["KB-FAQ-001"],
             ],
         )
+
+
+def test_evidence_recall_at_k_detects_missing_fact():
+    score = evidence_recall_at_k(
+        retrieved_contents=[
+            "P1 工单应在 15 分钟内首次响应。",
+            "P1 工单的首次响应时间要求仍为 15 分钟以内。",
+            "首次响应表示已经开始跟进。",
+        ],
+        required_evidence=[
+            "15 分钟内首次响应",
+            "至少每 30 分钟更新一次处理进度",
+        ],
+        k=3,
+    )
+
+    assert score == 0.5

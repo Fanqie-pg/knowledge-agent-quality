@@ -8,10 +8,11 @@ class RetrievalCase:
     case_id: str
     question: str
     relevant_doc_ids: list[str]
-    reference_answer: str
+    reference_answer: str | None
     answerable: bool
     category: str
     difficulty: str
+    required_evidence: list[str]
 
 
 def load_retrieval_cases(path: str | Path) -> list[RetrievalCase]:

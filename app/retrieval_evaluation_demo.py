@@ -32,7 +32,7 @@ def main():
     summary = evaluate_retrieval_cases(
         retriever,
         cases,
-        k=3,
+        k=5,
     )
 
     print(f"原始文档数：{len(documents)}")
@@ -46,12 +46,21 @@ def main():
         print(f"问题：{result.question}")
         print(f"期望文档：{result.relevant_doc_ids}")
         print(f"召回文档：{result.retrieved_doc_ids}")
+        print(f"必要证据：{result.required_evidence}")
+        print(
+            f"Evidence Recall@{summary.k}："
+            f"{result.evidence_recall_at_k:.4f}"
+        )
         print(f"Recall@{summary.k}：{result.recall_at_k:.4f}")
         print(f"RR：{result.reciprocal_rank:.4f}")
         print("-" * 60)
 
     print(f"Mean Recall@{summary.k}：{summary.mean_recall_at_k:.4f}")
     print(f"MRR：{summary.mrr:.4f}")
+    print(
+        f"Mean Evidence Recall@{summary.k}："
+        f"{summary.mean_evidence_recall_at_k:.4f}"
+    )
 
 if __name__ == "__main__":
     main()

@@ -37,7 +37,7 @@ def test_evaluate_retrieval_case_calculates_metrics():
     )
     relevant_document = Document(
         id="KB-FAQ-001-CHUNK-000",
-        page_content="账号锁定规则",
+        page_content="同一个账号连续输入错误密码5次后，系统会锁定账号。",
         metadata={"doc_id": "KB-FAQ-001"},
     )
 
@@ -63,6 +63,7 @@ def test_evaluate_retrieval_case_calculates_metrics():
         answerable=True,
         category="single_doc",
         difficulty="easy",
+        required_evidence=["连续输入错误密码 5 次"],
     )
 
     result = evaluate_retrieval_case(retriever, case, k=2)
@@ -75,15 +76,16 @@ def test_evaluate_retrieval_case_calculates_metrics():
     ]
     assert result.recall_at_k == 1.0
     assert result.reciprocal_rank == 0.5
+    assert result.evidence_recall_at_k == 1.0
 
 
 def test_evaluate_retrieval_cases_aggregates_answerable_cases():
     faq_document = Document(
-        page_content="账号规则",
+        page_content="账号会在30分钟后自动解锁。",
         metadata={"doc_id": "KB-FAQ-001"},
     )
     api_document = Document(
-        page_content="接口规则",
+        page_content="调用 POST /tickets 创建工单。",
         metadata={"doc_id": "KB-API-001"},
     )
     faq_result = RetrievalResult(
@@ -105,6 +107,7 @@ def test_evaluate_retrieval_cases_aggregates_answerable_cases():
         answerable=True,
         category="single_doc",
         difficulty="easy",
+        required_evidence=["账号会在 30 分钟后自动解锁"],
     )
 
     second_case = RetrievalCase(
@@ -115,16 +118,18 @@ def test_evaluate_retrieval_cases_aggregates_answerable_cases():
         answerable=True,
         category="single_doc",
         difficulty="easy",
+        required_evidence=["POST /tickets"],
     )
 
     unanswerable_case = RetrievalCase(
         case_id="RET-003",
         question="食堂今天吃什么？",
         relevant_doc_ids=[],
-        reference_answer="知识库没有相关信息。",
+        reference_answer=None,
         answerable=False,
         category="unanswerable",
         difficulty="easy",
+        required_evidence=[]
     )
 
     retriever = MappingFakeRetriever(
@@ -149,3 +154,5 @@ def test_evaluate_retrieval_cases_aggregates_answerable_cases():
     assert summary.mean_recall_at_k == 1.0
     assert summary.mrr == 0.75
     assert len(summary.case_results) == 2
+
+    assert summary.mean_evidence_recall_at_k == 1.0

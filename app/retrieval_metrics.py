@@ -44,3 +44,26 @@ def mean_reciprocal_rank(retrieved_doc_ids_by_case: list[list[str]], relevant_do
     ]
 
     return sum(reciprocal_ranks) / len(reciprocal_ranks)
+
+
+def evidence_recall_at_k(retrieved_contents: list[str], required_evidence: list[str], k: int) -> float:
+    if k <= 0:
+        raise ValueError("k必须大于0")
+
+    if not required_evidence:
+        raise ValueError("required_evidence不能为空")
+
+    top_k_context = "\n".join(retrieved_contents[:k])
+
+    normalized_context = "".join(top_k_context.split()).lower()
+
+    matched_count = 0
+    for evidence in required_evidence:
+        normalized_evidence = "".join(
+            evidence.split()
+        ).lower()
+
+        if normalized_evidence in normalized_context:
+            matched_count += 1
+
+    return matched_count / len(required_evidence)

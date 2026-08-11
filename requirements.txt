@@ -1,0 +1,8 @@
+pytest==9.1.1
+python-dotenv==1.2.2
+PyYAML==6.0.3
+langchain-core==1.5.0
+langchain-openai==1.4.0
+langchain-text-splitters==1.1.2
+langchain-huggingface==1.2.2
+sentence-transformers==5.7.0
