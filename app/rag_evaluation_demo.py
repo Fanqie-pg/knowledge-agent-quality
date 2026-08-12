@@ -10,6 +10,7 @@ from app.document_splitter import split_documents_recursive
 from app.retrieval_case_loader import load_retrieval_cases
 from app.document_loader import load_knowledge_documents
 from app.retriever import build_in_memory_retriever
+from app.query_rewriter import QueryRewriter
 
 
 def main():
@@ -24,6 +25,7 @@ def main():
         base_url="https://api.deepseek.com",
         temperature=0,
     )
+    query_rewriter = QueryRewriter(chat_model)
 
     documents = load_knowledge_documents("data/knowledge")
     chunks = split_documents_recursive(documents, chunk_size=500, chunk_overlap= 50)
@@ -33,7 +35,7 @@ def main():
         encode_kwargs={"normalize_embeddings": True}
     )
     retriever = build_in_memory_retriever(chunks, embedding)
-    agent = RAGAgent(chat_model, retriever, k=5)
+    agent = RAGAgent(chat_model, retriever, k=5, query_rewriter=query_rewriter)
 
     cases = load_retrieval_cases(
         "data/evaluation/retrieval_cases.jsonl"
@@ -78,6 +80,8 @@ def main():
             "确定性检查通过："
             f"{evaluation_result.deterministic_checks_passed}"
         )
+        print(f"原始问题：{run_result.query}")
+        print(f"检索问题：{run_result.retrieval_query}")
         print("-" * 70)
 
     case_count = len(evaluation_results)

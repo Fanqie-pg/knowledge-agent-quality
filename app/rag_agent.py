@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 from app.retriever import KnowledgeRetriever, RetrievalResult
+from app.query_rewriter import QueryRewriter
 
 
 @dataclass
@@ -12,6 +13,7 @@ class RAGRunResult:
     context: str
     final_response: AIMessage
     prompt_message: list[BaseMessage]
+    retrieval_query: str
 
 
 def format_retrieval_context(retrieval_results: list[RetrievalResult]) ->str:
@@ -48,16 +50,22 @@ RAG_SYSTEM_PROMPT = f"""
 
 class RAGAgent:
 
-    def __init__(self, chat_model, retriever: KnowledgeRetriever, k: int = 3):
+    def __init__(self, chat_model, retriever: KnowledgeRetriever, k: int = 3, query_rewriter: QueryRewriter | None = None):
         if k <= 0:
             raise ValueError("k必须大于0")
 
         self.chat_model = chat_model
         self.retriever = retriever
         self.k = k
+        self.query_rewriter = query_rewriter
 
     def run(self, query: str) -> RAGRunResult:
-        retrieval_results = self.retriever.retrieve(query, k=self.k)
+        if self.query_rewriter:
+            retrieval_query = self.query_rewriter.rewrite(query)
+        else:
+            retrieval_query = query
+
+        retrieval_results = self.retriever.retrieve(retrieval_query, k=self.k)
         context = format_retrieval_context(retrieval_results)
 
         prompt_messages = [
@@ -81,4 +89,5 @@ class RAGAgent:
             context=context,
             prompt_message=prompt_messages,
             final_response=final_response,
+            retrieval_query=retrieval_query,
         )

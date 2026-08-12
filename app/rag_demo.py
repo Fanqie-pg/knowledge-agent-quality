@@ -8,6 +8,7 @@ from app.document_loader import load_knowledge_documents
 from app.document_splitter import split_documents_recursive
 from app.rag_agent import RAGAgent
 from app.retriever import build_in_memory_retriever
+from app.query_rewriter import QueryRewriter
 
 
 def main():
@@ -35,10 +36,11 @@ def main():
         base_url="https://api.deepseek.com",
         temperature=0,
     )
-    agent = RAGAgent(chat_model, retriever, k=5)
+    query_rewriter = QueryRewriter(chat_model)
+    agent = RAGAgent(chat_model, retriever, k=5, query_rewriter=query_rewriter)
 
     questions = [
-        "P1工单多久必须首次响应，处理过程中多久同步一次进展？",
+        "登录口令连续写错多少回会被封？多长时间后自己恢复？",
     ]
 
     for question in questions:
@@ -56,6 +58,7 @@ def main():
             )
 
         print("最终回答：", result.final_response.content)
+        print(f"检索问题：{result.retrieval_query}")
         print("-" * 70)
 
 
