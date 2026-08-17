@@ -6,3 +6,4 @@ langchain-openai==1.4.0
 langchain-text-splitters==1.1.2
 langchain-huggingface==1.2.2
 sentence-transformers==5.7.0
+openai==2.46.0

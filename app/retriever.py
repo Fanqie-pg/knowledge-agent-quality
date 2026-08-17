@@ -1,8 +1,16 @@
+import logging
 from dataclasses import dataclass
 
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import InMemoryVectorStore
+
+
+logger = logging.getLogger(__name__)
+
+
+class RetrievalUnavailableError(RuntimeError):
+    """知识库检索基础设施暂时不可用。"""
 
 
 @dataclass
@@ -24,8 +32,16 @@ class KnowledgeRetriever:
         if k <= 0:
             raise ValueError("k必须大于0")
 
-        matches = self.vector_store.similarity_search_with_score(query, k=k)
-
+        try:
+            matches = self.vector_store.similarity_search_with_score(query, k=k)
+        except Exception as exc:
+            logger.error(
+                "知识库检索失败：error_type=%s",
+                type(exc).__name__,
+            )
+            raise RetrievalUnavailableError(
+                "知识库检索服务暂时不可用"
+            ) from exc
         return [
             RetrievalResult(
                 document=document,

@@ -1,8 +1,9 @@
+import logging
 from langchain_core.documents import Document
 from langchain_core.embeddings import DeterministicFakeEmbedding
 import pytest
 
-from app.retriever import KnowledgeRetriever, build_in_memory_retriever
+from app.retriever import KnowledgeRetriever, build_in_memory_retriever, RetrievalUnavailableError
 
 
 class FakeVectorStore:
@@ -103,3 +104,24 @@ def test_build_in_memory_retriever_indexes_documents():
     assert len(results) == 1
     assert results[0].document.id ==  "KB-TEST-001-CHUNK-000"
     assert results[0].rank == 1
+
+
+class FailingVectorStore:
+
+    def similarity_search_with_score(self, query, k):
+        raise ConnectionError("vector-store-internal-secret")
+
+
+def test_retrieve_converts_infrastructure_error(caplog):
+    retriever = KnowledgeRetriever(FailingVectorStore())
+
+    with caplog.at_level(logging.ERROR, logger="app.retriever"):
+        with pytest.raises(
+            RetrievalUnavailableError,
+            match="知识库检索服务暂时不可用",
+        ) as exc_info:
+            retriever.retrieve("P1工单多久响应？")
+
+    assert "ConnectionError" in caplog.text
+    assert "vector-store-internal-secret" not in caplog.text
+    assert "vector-store-internal-secret" not in str(exc_info.value)

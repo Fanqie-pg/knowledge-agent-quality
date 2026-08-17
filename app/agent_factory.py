@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
+from openai import APIConnectionError, APITimeoutError, InternalServerError, RateLimitError
 
 from app.document_loader import load_knowledge_documents
 from app.document_splitter import split_documents_recursive
@@ -13,6 +14,7 @@ from app.retriever import build_in_memory_retriever
 from app.tool_agent import ToolAgent
 from app.tool_registry import build_tools
 from app.unified_agent import UnifiedAgent
+from app.resilient_model import RetryingChatModel
 
 
 def build_unified_agent() -> UnifiedAgent:
@@ -22,11 +24,26 @@ def build_unified_agent() -> UnifiedAgent:
     if not api_key:
         raise RuntimeError("DEEPSEEK_API_KEY未配置")
 
-    chat_model = ChatOpenAI(
+    base_chat_model = ChatOpenAI(
         model="deepseek-v4-flash",
         api_key=api_key,
         base_url="https://api.deepseek.com",
         temperature=0,
+        timeout=30,
+        max_retries=0,
+    )
+    chat_model = RetryingChatModel(
+        model=base_chat_model,
+        max_attempts=2,
+        retry_delay_seconds=0.5,
+        retryable_exceptions=(
+            TimeoutError,
+            ConnectionError,
+            APITimeoutError,
+            APIConnectionError,
+            RateLimitError,
+            InternalServerError,
+        ),
     )
 
     documents = load_knowledge_documents("data/knowledge")

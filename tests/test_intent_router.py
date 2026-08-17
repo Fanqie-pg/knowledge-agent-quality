@@ -2,7 +2,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import ValidationError
 
-from app.intent_router import AgentRoute, IntentRouter, RouteDecision, parse_route_decision
+from app.intent_router import AgentRoute, IntentRouter, InvalidRouteResponseError, RouteDecision, parse_route_decision
 
 
 @pytest.mark.parametrize(
@@ -99,7 +99,31 @@ def test_parse_route_decision_accepts_markdown_json_block():
 
 def test_parse_route_decision_rejects_invalid_json():
     with pytest.raises(
-        ValueError,
+        InvalidRouteResponseError,
         match="路由模型返回内容不是有效JSON",
     ):
         parse_route_decision("knowledge")
+
+def test_parse_route_decision_rejects_unknown_route():
+    with pytest.raises(
+        InvalidRouteResponseError,
+        match="路由模型返回字段不合法",
+    ):
+        parse_route_decision(
+            """
+            {
+                "route": "unknown",
+                "reason": "无法判断"
+            }
+            """
+        )
+
+
+def test_parse_route_decision_rejects_missing_reason():
+    with pytest.raises(
+        InvalidRouteResponseError,
+        match="路由模型返回字段不合法",
+    ):
+        parse_route_decision(
+            '{"route": "knowledge"}'
+        )

@@ -1,7 +1,9 @@
+import logging
 from dataclasses import dataclass
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import StructuredTool
+from pydantic import ValidationError
 
 
 @dataclass
@@ -9,6 +11,27 @@ class AgentRunResult:
     decision: AIMessage
     tool_messages: list[ToolMessage]
     final_response: AIMessage
+
+
+def _format_tool_validation_error(error: ValidationError) -> str:
+    messages = []
+    for detail in error.errors():
+        location = detail.get("loc", ())
+        parameter_name = ".".join(
+            str(part) for part in location
+        )
+        if detail.get("type") == "missing":
+            messages.append(
+                f"缺少参数 {parameter_name}"
+            )
+        else:
+            messages.append(
+                f"参数 {parameter_name} 格式不正确"
+            )
+    return "工具参数错误：" + "；".join(messages)
+
+
+logger = logging.getLogger(__name__)
 
 
 class ToolAgent:
@@ -25,20 +48,44 @@ class ToolAgent:
     def execute_tool_calls(self, message: AIMessage) -> list[ToolMessage]:
         tool_messages = []
         for tool_call in message.tool_calls:
-            tool = self.tools_by_name[tool_call["name"]]
+            tool_name = tool_call["name"]
+            tool = self.tools_by_name.get(tool_name)
+
+            if tool is None:
+                tool_messages.append(
+                    ToolMessage(
+                        status="error",
+                        content=f"未知工具：{tool_name}",
+                        tool_call_id=tool_call["id"],
+                        name=tool_name,
+                    )
+                )
+                continue
+
             try:
                 content = str(tool.invoke(tool_call["args"]))
                 status = "success"
+            except ValidationError as exc:
+                content = _format_tool_validation_error(exc)
+                status = "error"
             except (ValueError, KeyError) as exc:
                 error_message = exc.args[0] if exc.args else str(exc)
                 content = error_message
+                status = "error"
+            except Exception as exc:
+                logger.error(
+                    "工具执行失败：tool=%s, error_type=%s",
+                    tool_name,
+                    type(exc).__name__,
+                )
+                content = "工具执行失败，请稍后重试"
                 status = "error"
             tool_messages.append(
                 ToolMessage(
                     status=status,
                     content=content,
                     tool_call_id=tool_call["id"],
-                    name=tool_call["name"],
+                    name=tool_name,
                 )
             )
         return tool_messages

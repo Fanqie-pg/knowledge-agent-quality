@@ -2,7 +2,11 @@ import json
 from enum import Enum
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+
+
+class InvalidRouteResponseError(ValueError):
+    """表示路由模型返回内容不符合约定协议。"""
 
 
 class AgentRoute(str, Enum):
@@ -68,9 +72,12 @@ def parse_route_decision(content: str) -> RouteDecision:
     try:
         data = json.loads(cleaned_content)
     except json.JSONDecodeError as error:
-        raise ValueError("路由模型返回内容不是有效JSON") from error
+        raise InvalidRouteResponseError("路由模型返回内容不是有效JSON") from error
 
-    return RouteDecision.model_validate(data)
+    try:
+        return RouteDecision.model_validate(data)
+    except ValidationError as error:
+        raise InvalidRouteResponseError("路由模型返回字段不合法") from error
 
 
 class IntentRouter:

@@ -1,4 +1,8 @@
+import logging
+
+import pytest
 from langchain_core.messages import AIMessage
+from langchain_core.tools import StructuredTool
 
 from app.tool_agent import ToolAgent
 from app.tool_registry import build_tools
@@ -127,3 +131,102 @@ def test_execute_tool_calls_converts_business_error_to_tool_message():
     assert tool_messages[0].name == "get_leave_balance"
     assert tool_messages[0].tool_call_id == "call-error-1"
     assert "员工不存在" in tool_messages[0].content
+
+
+def test_execute_tool_calls_converts_unknown_tool_to_error_message():
+    decision = AIMessage(
+        content="",
+        tool_calls=[
+            {
+                "name": "unknown_tool",
+                "args": {},
+                "id": "call-unknown-1",
+                "type": "tool_call",
+            }
+        ],
+    )
+    tools = build_tools()
+    fake_model = FakeToolModel()
+    agent = ToolAgent(fake_model, tools)
+
+    tool_messages = agent.execute_tool_calls(decision)
+
+    assert len(tool_messages) == 1
+    assert tool_messages[0].status == "error"
+    assert tool_messages[0].name == "unknown_tool"
+    assert tool_messages[0].tool_call_id == "call-unknown-1"
+    assert tool_messages[0].content == "未知工具：unknown_tool"
+
+
+@pytest.mark.parametrize(
+    ("tool_args", "expected_message"),
+    [
+        (
+            {"a": 12},
+            "工具参数错误：缺少参数 b",
+        ),
+        (
+            {"a": "abc", "b": 8},
+            "工具参数错误：参数 a 格式不正确",
+        ),
+    ],
+)
+def test_execute_tool_calls_converts_invalid_args_to_error_message(tool_args, expected_message):
+    decision = AIMessage(
+        content="",
+        tool_calls=[
+            {
+                "name": "multiply_numbers",
+                "args": tool_args,
+                "id": "call-invalid-args-1",
+                "type": "tool_call",
+            }
+        ],
+    )
+
+    agent = ToolAgent(FakeToolModel(), build_tools())
+
+    tool_messages = agent.execute_tool_calls(decision)
+
+    assert len(tool_messages) == 1
+    assert tool_messages[0].status == "error"
+    assert tool_messages[0].content == expected_message
+    assert tool_messages[0].tool_call_id == "call-invalid-args-1"
+
+
+def raise_unexpected_error(value: str) -> str:
+    raise RuntimeError("数据库连接失败，password=internal-secret")
+
+
+def test_execute_tool_calls_hides_unexpected_internal_error(caplog):
+    unstable_tool = StructuredTool.from_function(
+        func=raise_unexpected_error,
+        name="unstable_tool",
+        description="模拟内部服务异常",
+    )
+
+    decision = AIMessage(
+        content="",
+        tool_calls=[
+            {
+                "name": "unstable_tool",
+                "args": {"value": "test"},
+                "id": "call-runtime-error-1",
+                "type": "tool_call",
+            }
+        ],
+    )
+
+    agent = ToolAgent(FakeToolModel(), [unstable_tool])
+
+    with caplog.at_level(logging.ERROR, logger="app.tool_agent"):
+        tool_messages = agent.execute_tool_calls(decision)
+
+    assert "unstable_tool" in caplog.text
+    assert "RuntimeError" in caplog.text
+    assert "internal-secret" not in caplog.text
+    assert "internal-secret" not in tool_messages[0].content
+
+    assert len(tool_messages) == 1
+    assert tool_messages[0].status == "error"
+    assert tool_messages[0].content == "工具执行失败，请稍后重试"
