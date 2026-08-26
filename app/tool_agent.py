@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import StructuredTool
@@ -11,6 +11,9 @@ class AgentRunResult:
     decision: AIMessage
     tool_messages: list[ToolMessage]
     final_response: AIMessage
+    requested_tool_names: list[str] = field(default_factory=list)
+    executed_tool_names: list[str] = field(default_factory=list)
+    blocked_tool_names: list[str] = field(default_factory=list)
 
 
 def _format_tool_validation_error(error: ValidationError) -> str:
@@ -45,10 +48,30 @@ class ToolAgent:
         result = self.model_with_tools.invoke(prompt)
         return result
 
-    def execute_tool_calls(self, message: AIMessage) -> list[ToolMessage]:
+    def execute_tool_calls(self, message: AIMessage, allowed_tool_names: list[str] | None = None) -> list[ToolMessage]:
         tool_messages = []
+        allowed_tool_name_set = (
+            None
+            if allowed_tool_names is None
+            else set(allowed_tool_names)
+        )
         for tool_call in message.tool_calls:
             tool_name = tool_call["name"]
+
+            if (
+                allowed_tool_name_set is not None
+                and tool_name not in allowed_tool_name_set
+            ):
+                tool_messages.append(
+                    ToolMessage(
+                        status="error",
+                        content=f"无权调用工具：{tool_name}",
+                        tool_call_id=tool_call["id"],
+                        name=tool_name,
+                    )
+                )
+                continue
+
             tool = self.tools_by_name.get(tool_name)
 
             if tool is None:
@@ -90,15 +113,47 @@ class ToolAgent:
             )
         return tool_messages
 
-    def run(self, prompt: str) -> AgentRunResult:
+    def run(self, prompt: str, allowed_tool_names: list[str] | None = None) -> AgentRunResult:
         decision = self.decide(prompt)
+        requested_tool_names = [
+            tool_call["name"]
+            for tool_call in decision.tool_calls
+        ]
         if not decision.tool_calls:
             return AgentRunResult(
                 decision=decision,
                 tool_messages=[],
                 final_response=decision,
             )
-        tool_messages = self.execute_tool_calls(decision)
+
+        allowed_tool_name_set = (
+            None
+            if allowed_tool_names is None
+            else set(allowed_tool_names)
+        )
+
+        blocked_tool_names = [
+            tool_name
+            for tool_name in requested_tool_names
+            if (
+                allowed_tool_name_set is not None
+                and tool_name not in allowed_tool_name_set
+            )
+        ]
+
+        executed_tool_names = [
+            tool_name
+            for tool_name in requested_tool_names
+            if (
+                tool_name in self.tools_by_name
+                and (
+                    allowed_tool_name_set is None
+                    or tool_name in allowed_tool_name_set
+                )
+            )
+        ]
+
+        tool_messages = self.execute_tool_calls(decision, allowed_tool_names=allowed_tool_names)
         messages = [
             HumanMessage(content=prompt),
             decision,
@@ -109,4 +164,7 @@ class ToolAgent:
             decision=decision,
             tool_messages=tool_messages,
             final_response=final_response,
+            requested_tool_names=requested_tool_names,
+            executed_tool_names=executed_tool_names,
+            blocked_tool_names=blocked_tool_names,
         )

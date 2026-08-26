@@ -82,12 +82,17 @@ def test_run_executes_tool_and_returns_final_answer():
     assert result.tool_messages[0].tool_call_id == "call-1"
 
     assert len(fake_model.received_inputs) == 2
+
     second_input = fake_model.received_inputs[1]
     assert len(second_input) == 3
     assert second_input[0].content == "12乘以8是多少？"
     assert second_input[1].tool_calls[0]["name"] == "multiply_numbers"
     assert second_input[2].content == "96.0"
     assert second_input[2].tool_call_id == "call-1"
+
+    assert result.requested_tool_names == ["multiply_numbers"]
+    assert result.executed_tool_names == ["multiply_numbers"]
+    assert result.blocked_tool_names == []
 
 
 def test_run_returns_direct_answer_without_tool_call():
@@ -230,3 +235,45 @@ def test_execute_tool_calls_hides_unexpected_internal_error(caplog):
     assert len(tool_messages) == 1
     assert tool_messages[0].status == "error"
     assert tool_messages[0].content == "工具执行失败，请稍后重试"
+
+
+def test_execute_tool_calls_blocks_unauthorized_tool():
+    decision = AIMessage(
+        content="",
+        tool_calls=[
+            {
+                "name": "get_leave_balance",
+                "args": {
+                    "employee_id": "E001",
+                },
+                "id": "call-unauthorized-1",
+                "type": "tool_call",
+            }
+        ],
+    )
+
+    agent = ToolAgent(FakeToolModel(), build_tools())
+
+    tool_messages = agent.execute_tool_calls(decision, allowed_tool_names=[])
+
+    assert len(tool_messages) == 1
+    assert tool_messages[0].status == "error"
+    assert (tool_messages[0].content == "无权调用工具：get_leave_balance")
+    assert (tool_messages[0].tool_call_id == "call-unauthorized-1")
+    assert (tool_messages[0].name == "get_leave_balance")
+    assert "5" not in tool_messages[0].content
+
+
+def test_run_records_blocked_unauthorized_tool():
+    fake_model = FakeToolModel()
+    agent = ToolAgent(fake_model, build_tools())
+
+    result = agent.run("12乘以8是多少？", allowed_tool_names=[])
+
+    assert result.requested_tool_names == ["multiply_numbers"]
+    assert result.executed_tool_names == []
+    assert result.blocked_tool_names == ["multiply_numbers"]
+
+    assert len(result.tool_messages) == 1
+    assert result.tool_messages[0].status == "error"
+    assert result.tool_messages[0].content == "无权调用工具：multiply_numbers"
