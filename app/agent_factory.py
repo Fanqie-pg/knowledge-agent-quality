@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 from openai import APIConnectionError, APITimeoutError, InternalServerError, RateLimitError
+from langchain_core.tools import StructuredTool
 
 from app.document_loader import load_knowledge_documents
 from app.document_splitter import split_documents_recursive
@@ -17,13 +18,16 @@ from app.unified_agent import UnifiedAgent
 from app.resilient_model import RetryingChatModel
 
 
-def build_unified_agent() -> UnifiedAgent:
+def build_unified_agent(tools: list[StructuredTool] | None = None) -> UnifiedAgent:
     chat_model = build_chat_model()
     retriever = build_knowledge_retriever()
 
     router = IntentRouter(chat_model)
 
-    tool_agent = ToolAgent(chat_model, build_tools())
+    if tools is None:
+        tools = build_tools()
+
+    tool_agent = ToolAgent(chat_model, tools)
 
     rag_agent = RAGAgent(
         chat_model=chat_model,

@@ -1,0 +1,81 @@
+import asyncio
+from typing import Any, Protocol
+
+from langchain_core.tools import StructuredTool
+from mcp.types import CallToolResult, TextContent, Tool, ListToolsResult
+
+
+
+class MCPClientProtocol(Protocol):
+
+    async def list_tools(self) -> ListToolsResult:
+        ...
+
+    async def call_tool(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+    ) -> CallToolResult:
+        ...
+
+
+class MCPToolExecutionError(ValueError):
+    """MCP工具返回了可预期的执行失败。"""
+
+
+def _extract_text(result: CallToolResult) -> str:
+    texts = [
+        content.text
+        for content in result.content
+        if isinstance(content, TextContent)
+    ]
+    return "\n".join(texts)
+
+
+def _convert_tool_result(result: CallToolResult) -> Any:
+    if result.is_error:
+        error_message = _extract_text(result)
+        raise MCPToolExecutionError(error_message or "MCP工具执行失败")
+
+    structured_content = result.structured_content
+
+    if (isinstance(structured_content, dict) and "result" in structured_content):
+        return structured_content["result"]
+
+    if structured_content is not None:
+        return structured_content
+
+    return _extract_text(result)
+
+
+async def _call_mcp_tool(client: MCPClientProtocol, tool_name: str, arguments: dict[str, Any]) -> Any:
+    result = await client.call_tool(tool_name, arguments)
+    return _convert_tool_result(result)
+
+
+def _build_langchain_tool(client: MCPClientProtocol, mcp_tool: Tool) -> StructuredTool:
+    tool_name = mcp_tool.name
+
+    def invoke_tool(**arguments: Any) -> Any:
+        return asyncio.run(_call_mcp_tool(client, tool_name, arguments))
+
+    async def ainvoke_tool(**arguments: Any) -> Any:
+        return await _call_mcp_tool(client, tool_name, arguments)
+
+    return StructuredTool(
+        name=tool_name,
+        description=mcp_tool.description or "",
+        args_schema=mcp_tool.input_schema,
+        func=invoke_tool,
+        coroutine=ainvoke_tool,
+        metadata={"source": "mcp"},
+    )
+
+
+async def build_mcp_langchain_tools(client: MCPClientProtocol) -> list[StructuredTool]:
+    tools_result = await client.list_tools()
+
+    return [
+        _build_langchain_tool(client, mcp_tool)
+        for mcp_tool in tools_result.tools
+    ]
