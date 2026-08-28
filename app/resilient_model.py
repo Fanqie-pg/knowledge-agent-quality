@@ -26,6 +26,7 @@ class RetryingChatModel:
             ConnectionError,
         ),
     ):
+        """配置总尝试次数、退避基数和允许重试的异常类型。"""
         if max_attempts <= 0:
             raise ValueError("max_attempts必须大于0")
         if retry_delay_seconds < 0:
@@ -40,6 +41,8 @@ class RetryingChatModel:
         self.retryable_exceptions = retryable_exceptions
 
     def invoke(self, model_input, *args, **kwargs):
+        """调用底层模型；重试耗尽后转换为统一的模型不可用异常。"""
+        # max_attempts 包含首次调用，例如 2 表示首次调用加一次重试。
         for attempt in range(1, self.max_attempts + 1):
             try:
                 return self.model.invoke(model_input, *args, **kwargs)
@@ -70,6 +73,7 @@ class RetryingChatModel:
                     self.sleep_fn(delay)
 
     def bind_tools(self, tools, **kwargs):
+        """绑定工具后继续保留与原模型相同的重试策略。"""
         bound_model = self.model.bind_tools(tools, **kwargs)
 
         return RetryingChatModel(

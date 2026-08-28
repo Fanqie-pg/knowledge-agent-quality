@@ -1,3 +1,5 @@
+"""实现查询改写、知识召回、上下文构造和带来源回答的 RAG 链路。"""
+
 from dataclasses import dataclass
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
@@ -8,6 +10,8 @@ from app.query_rewriter import QueryRewriter
 
 @dataclass
 class RAGRunResult:
+    """保存原问题、检索问题、召回证据、Prompt 和最终回答。"""
+
     query: str
     retrieval_results: list[RetrievalResult]
     context: str
@@ -17,6 +21,7 @@ class RAGRunResult:
 
 
 def format_retrieval_context(retrieval_results: list[RetrievalResult]) ->str:
+    """把召回 Chunk 格式化为携带 doc_id/chunk_id 的模型上下文。"""
     context_parts = []
 
     for result in retrieval_results:
@@ -53,6 +58,7 @@ RAG_SYSTEM_PROMPT = f"""
 
 
 class RAGAgent:
+    """基于检索证据回答问题，并要求模型拒绝无证据问题。"""
 
     def __init__(self, chat_model, retriever: KnowledgeRetriever, k: int = 3, query_rewriter: QueryRewriter | None = None):
         if k <= 0:
@@ -64,6 +70,8 @@ class RAGAgent:
         self.query_rewriter = query_rewriter
 
     def run(self, query: str) -> RAGRunResult:
+        """执行一次 RAG 请求，并返回可用于评测和追踪的中间结果。"""
+        # 改写结果只服务于语义检索，最终回答仍保留用户的原始问题。
         if self.query_rewriter:
             retrieval_query = self.query_rewriter.rewrite(query)
         else:

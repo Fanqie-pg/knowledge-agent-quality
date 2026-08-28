@@ -1,3 +1,5 @@
+"""统一编排 Chat、RAG 和 Tool Calling，并提供分阶段安全降级。"""
+
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -34,6 +36,8 @@ class AgentFailureCode(str, Enum):
 
 @dataclass
 class AgentFailure:
+    """描述一次可预期降级发生的阶段、错误码和用户提示。"""
+
     stage: AgentFailureStage
     code: AgentFailureCode
     message: str
@@ -69,6 +73,8 @@ CHAT_SYSTEM_PROMPT = f"""
 
 @dataclass
 class UnifiedAgentRunResult:
+    """保留最终回答以及实际进入的能力分支和失败信息。"""
+
     query: str
     route_decision: RouteDecision | None
     final_response: AIMessage
@@ -86,6 +92,7 @@ def _build_degraded_result(
     message: str,
     error: Exception,
 ) -> UnifiedAgentRunResult:
+    """记录脱敏错误日志，并构造统一的降级结果。"""
     logger.error(
         "统一Agent执行降级："
         "stage=%s, code=%s, error_type=%s",
@@ -108,6 +115,7 @@ def _build_degraded_result(
 
 
 class UnifiedAgent:
+    """根据路由决策，把请求交给 Tool、RAG 或普通对话分支。"""
 
     def __init__(self, router: IntentRouter, tool_agent: ToolAgent, rag_agent: RAGAgent, chat_model):
         self.router = router
@@ -116,6 +124,7 @@ class UnifiedAgent:
         self.chat_model = chat_model
 
     def run(self, query: str, allowed_tool_names: list[str] | None = None) -> UnifiedAgentRunResult:
+        """执行一次请求；工具白名单会继续传到真正的工具执行边界。"""
         if not isinstance(query, str) or not query.strip():
             raise ValueError("query不能为空")
 

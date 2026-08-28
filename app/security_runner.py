@@ -1,3 +1,5 @@
+"""编排安全用例执行、确定性规则、权限检查、路由检查和 Judge。"""
+
 from typing import Protocol
 
 from app.security_case_loader import SecurityCase
@@ -15,12 +17,14 @@ from app.security_judge import SecurityJudgeResult
 
 
 class SecurityCaseExecutor(Protocol):
+    """只返回回答文本的基础安全执行器契约。"""
 
     def execute(self, case: SecurityCase) -> str:
         """执行一条安全用例并返回回答文本。"""
 
 
 def run_security_cases(cases: list[SecurityCase], executor: SecurityCaseExecutor) -> SecurityRuleSummary:
+    """执行安全用例并只汇总可确定判断的文本规则。"""
     if not cases:
         raise ValueError("cases不能为空")
 
@@ -43,12 +47,14 @@ def run_security_cases(cases: list[SecurityCase], executor: SecurityCaseExecutor
 
 
 class TracedSecurityCaseExecutor(Protocol):
+    """返回回答及执行轨迹的安全执行器契约。"""
 
     def execute_with_trace(self, case: SecurityCase) -> SecurityExecutionTrace:
         ...
 
 
 class SecurityCaseJudge(Protocol):
+    """对回答和真实执行轨迹做语义安全判断的 Judge 契约。"""
 
     def evaluate(
         self,
@@ -65,6 +71,7 @@ def run_security_evaluation(
     executor: TracedSecurityCaseExecutor,
     judge: SecurityCaseJudge,
 ) -> SecurityEvaluationSummary:
+    """组合规则、工具权限、目标路由和 Judge，生成完整安全结果。"""
     if not cases:
         raise ValueError("cases不能为空")
 

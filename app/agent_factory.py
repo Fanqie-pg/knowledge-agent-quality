@@ -1,3 +1,5 @@
+"""集中组装模型、知识检索器和 UnifiedAgent 的运行依赖。"""
+
 import os
 
 from dotenv import load_dotenv
@@ -19,6 +21,7 @@ from app.resilient_model import RetryingChatModel
 
 
 def build_unified_agent(tools: list[StructuredTool] | None = None) -> UnifiedAgent:
+    """构建统一 Agent；允许注入本地工具或 MCP 适配后的工具。"""
     chat_model = build_chat_model()
     retriever = build_knowledge_retriever()
 
@@ -44,6 +47,7 @@ def build_unified_agent(tools: list[StructuredTool] | None = None) -> UnifiedAge
 
 
 def build_chat_model() -> RetryingChatModel:
+    """创建 DeepSeek 客户端，并在项目边界统一配置有限重试。"""
     load_dotenv()
 
     api_key = os.getenv("DEEPSEEK_API_KEY")
@@ -77,6 +81,7 @@ def build_chat_model() -> RetryingChatModel:
 
 
 def build_knowledge_retriever() -> KnowledgeRetriever:
+    """加载并切分本地知识库，使用中文 Embedding 构建内存检索器。"""
     documents = load_knowledge_documents(
         "data/knowledge"
     )

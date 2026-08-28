@@ -1,3 +1,5 @@
+"""实现工具决策、执行前权限检查和双轮模型消息编排。"""
+
 import logging
 from dataclasses import dataclass, field
 
@@ -8,6 +10,8 @@ from pydantic import ValidationError
 
 @dataclass
 class AgentRunResult:
+    """记录模型请求、实际执行和被权限拦截的完整工具轨迹。"""
+
     decision: AIMessage
     tool_messages: list[ToolMessage]
     final_response: AIMessage
@@ -17,6 +21,7 @@ class AgentRunResult:
 
 
 def _format_tool_validation_error(error: ValidationError) -> str:
+    """把 Pydantic 参数错误转换成适合返回给模型的稳定业务提示。"""
     messages = []
     for detail in error.errors():
         location = detail.get("loc", ())
@@ -38,6 +43,8 @@ logger = logging.getLogger(__name__)
 
 
 class ToolAgent:
+    """让模型选择 StructuredTool，并把工具结果交给模型生成最终回答。"""
+
     def __init__(self, chat_model, tools: list[StructuredTool]):
         self.model_with_tools = chat_model.bind_tools(tools)
         self.tools_by_name = {
@@ -45,10 +52,12 @@ class ToolAgent:
         }
 
     def decide(self, prompt: str) -> AIMessage:
+        """执行第一轮模型调用，获得直接回答或工具调用决策。"""
         result = self.model_with_tools.invoke(prompt)
         return result
 
     def execute_tool_calls(self, message: AIMessage, allowed_tool_names: list[str] | None = None) -> list[ToolMessage]:
+        """执行模型请求的工具，并将成功或安全错误转换成 ToolMessage。"""
         tool_messages = []
         allowed_tool_name_set = (
             None
@@ -58,6 +67,7 @@ class ToolAgent:
         for tool_call in message.tool_calls:
             tool_name = tool_call["name"]
 
+            # 权限必须在查找和调用工具之前生效，避免“回答拒绝但工具已执行”。
             if (
                 allowed_tool_name_set is not None
                 and tool_name not in allowed_tool_name_set
@@ -114,6 +124,7 @@ class ToolAgent:
         return tool_messages
 
     def run(self, prompt: str, allowed_tool_names: list[str] | None = None) -> AgentRunResult:
+        """完成工具决策、执行和基于 ToolMessage 的第二轮回答。"""
         decision = self.decide(prompt)
         requested_tool_names = [
             tool_call["name"]
@@ -159,6 +170,7 @@ class ToolAgent:
             decision,
             *tool_messages,
         ]
+        # 第二轮模型同时看到原问题、工具决策和对应的工具执行结果。
         final_response = self.model_with_tools.invoke(messages)
         return AgentRunResult(
             decision=decision,

@@ -1,3 +1,5 @@
+"""封装 stdio MCP 工具发现与调用，并统一超时和不可用异常。"""
+
 from typing import Any
 import asyncio
 
@@ -15,17 +17,21 @@ class MCPTimeoutError(MCPUnavailableError):
 
 
 class MCPToolClient:
+    """使用独立 stdio 会话执行 MCP 操作的无状态客户端。"""
 
     def __init__(self, server_parameters: StdioServerParameters, read_timeout_seconds: float = 10):
+        """保存服务启动参数和覆盖整个操作的总超时时间。"""
         self.server_parameters = server_parameters
         self.read_timeout_seconds = read_timeout_seconds
 
     async def list_tools(self) -> ListToolsResult:
+        """启动 MCP 会话并发现服务端暴露的工具与参数 Schema。"""
         async def operation() -> ListToolsResult:
             async with Client(self.server_parameters, read_timeout_seconds=self.read_timeout_seconds) as client:
                 return await client.list_tools()
 
         try:
+            # 外层超时同时覆盖子进程启动、协议初始化和工具发现。
             return await asyncio.wait_for(operation(), timeout=self.read_timeout_seconds)
         except TimeoutError as error:
             raise MCPTimeoutError("MCP服务响应超时") from error
@@ -33,11 +39,13 @@ class MCPToolClient:
             raise MCPUnavailableError("MCP服务不可用") from error
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> CallToolResult:
+        """在新 stdio 会话中调用工具，并保留原始 CallToolResult。"""
         async def operation() -> CallToolResult:
             async with Client(self.server_parameters, read_timeout_seconds=self.read_timeout_seconds) as client:
                 return await client.call_tool(tool_name, arguments)
 
         try:
+            # SDK读取超时之外再加总超时，避免初始化阶段无限等待。
             return await asyncio.wait_for(operation(), timeout=self.read_timeout_seconds)
         except TimeoutError as error:
             raise MCPTimeoutError("MCP服务响应超时") from error
