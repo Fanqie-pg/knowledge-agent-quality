@@ -37,17 +37,14 @@ class FakeToolModel:
         return self.final_response
 
 
-def build_real_mcp_tools():
-    parameters = StdioServerParameters(
-        command=sys.executable,
-        args=["-m", "app.mcp_server"],
-        cwd=PROJECT_ROOT,
-    )
+def build_real_mcp_tools(repository, user_context):
+    from app.mcp_tool_registry import UserBoundMCPClient
+    parameters = UserBoundMCPClient(user_context=user_context, database_path=repository.path, profile="legacy").client().server_parameters
     client = MCPToolClient(parameters, read_timeout_seconds=5)
     return asyncio.run(build_mcp_langchain_tools(client))
 
 
-def test_tool_agent_executes_real_mcp_tool():
+def test_tool_agent_executes_real_mcp_tool(seeded_business_repository, trusted_hr_context):
     decision = AIMessage(
         content="",
         tool_calls=[
@@ -62,8 +59,8 @@ def test_tool_agent_executes_real_mcp_tool():
     final_response = AIMessage(content="12乘以8等于96。", tool_calls=[])
     model = FakeToolModel(decision, final_response)
 
-    tools = build_real_mcp_tools()
-    agent = ToolAgent(model, tools)
+    tools = build_real_mcp_tools(seeded_business_repository, trusted_hr_context)
+    agent = ToolAgent(model, tools, user_context=trusted_hr_context)
 
     result = agent.run("12乘以8是多少？")
 
@@ -85,7 +82,7 @@ def test_tool_agent_executes_real_mcp_tool():
     assert result.final_response.content == "12乘以8等于96。"
 
 
-def test_tool_agent_converts_real_mcp_business_error():
+def test_tool_agent_converts_real_mcp_business_error(seeded_business_repository, trusted_hr_context):
     decision = AIMessage(
         content="",
         tool_calls=[
@@ -98,11 +95,11 @@ def test_tool_agent_converts_real_mcp_business_error():
         ],
     )
 
-    final_response = AIMessage(content="未找到该员工。", tool_calls=[])
+    final_response = AIMessage(content="已经成功查到了该员工的年假。", tool_calls=[])
     model = FakeToolModel(decision, final_response)
 
-    tools = build_real_mcp_tools()
-    agent = ToolAgent(model, tools)
+    tools = build_real_mcp_tools(seeded_business_repository, trusted_hr_context)
+    agent = ToolAgent(model, tools, user_context=trusted_hr_context)
 
     result = agent.run("查询员工E999的剩余年假")
 
@@ -114,4 +111,10 @@ def test_tool_agent_converts_real_mcp_business_error():
     assert tool_message.name == "get_leave_balance"
     assert tool_message.tool_call_id == "mcp-call-2"
 
-    assert result.final_response is final_response
+    assert len(model.received_inputs) == 1
+    assert result.answer_mode == "execution_receipt"
+    assert result.executed_tool_names == ["get_leave_balance"]
+    assert result.execution_records[0]["status"] == "error"
+    assert "已发起工具调用" in result.final_response.content
+    assert "未能成功完成" in result.final_response.content
+    assert "成功查到" not in result.final_response.content

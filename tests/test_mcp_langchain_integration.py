@@ -14,17 +14,14 @@ pytestmark = pytest.mark.integration
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def build_real_mcp_client() -> MCPToolClient:
-    parameters = StdioServerParameters(
-        command=sys.executable,
-        args=["-m", "app.mcp_server"],
-        cwd=PROJECT_ROOT,
-    )
+def build_real_mcp_client(repository, user_context) -> MCPToolClient:
+    from app.mcp_tool_registry import UserBoundMCPClient
+    parameters = UserBoundMCPClient(user_context=user_context, database_path=repository.path, profile="legacy").client().server_parameters
     return MCPToolClient(parameters, read_timeout_seconds=5)
 
 
-def test_adapter_invokes_real_mcp_tools():
-    client = build_real_mcp_client()
+def test_adapter_invokes_real_mcp_tools(seeded_business_repository, trusted_hr_context):
+    client = build_real_mcp_client(seeded_business_repository, trusted_hr_context)
 
     tools = asyncio.run(build_mcp_langchain_tools(client))
     tools_by_name = {tool.name: tool for tool in tools}
@@ -38,8 +35,8 @@ def test_adapter_invokes_real_mcp_tools():
     assert leave_result == 5
 
 
-def test_adapter_converts_real_mcp_business_error():
-    client = build_real_mcp_client()
+def test_adapter_converts_real_mcp_business_error(seeded_business_repository, trusted_hr_context):
+    client = build_real_mcp_client(seeded_business_repository, trusted_hr_context)
     tools = asyncio.run(build_mcp_langchain_tools(client))
     tools_by_name = {tool.name: tool for tool in tools}
 

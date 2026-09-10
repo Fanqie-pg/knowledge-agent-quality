@@ -11,6 +11,8 @@ from app.rag_agent import RAGAgent, RAGRunResult
 from app.retriever import RetrievalUnavailableError
 from app.tool_agent import AgentRunResult, ToolAgent
 from app.resilient_model import ModelUnavailableError
+from app.tracing import emit, span
+from app.tool_permissions import UNSET_CONTEXT, validate_context
 
 
 logger = logging.getLogger(__name__)
@@ -100,6 +102,7 @@ def _build_degraded_result(
         code.value,
         type(error).__name__,
     )
+    emit("unified", "degraded", stage_failed=stage.value, code=code.value, error_type=type(error).__name__)
 
     return UnifiedAgentRunResult(
         query=query,
@@ -117,16 +120,25 @@ def _build_degraded_result(
 class UnifiedAgent:
     """根据路由决策，把请求交给 Tool、RAG 或普通对话分支。"""
 
-    def __init__(self, router: IntentRouter, tool_agent: ToolAgent, rag_agent: RAGAgent, chat_model):
+    def __init__(self, router: IntentRouter, tool_agent: ToolAgent, rag_agent: RAGAgent, chat_model, *, user_context=None):
         self.router = router
         self.tool_agent = tool_agent
         self.rag_agent = rag_agent
         self.chat_model = chat_model
+        self._default_user_context = validate_context(user_context)
 
-    def run(self, query: str, allowed_tool_names: list[str] | None = None) -> UnifiedAgentRunResult:
+    @property
+    def user_context(self):
+        return self._default_user_context
+
+    def run(self, query: str, allowed_tool_names: list[str] | None = None, *, request_key=None, user_context=UNSET_CONTEXT) -> UnifiedAgentRunResult:
         """执行一次请求；工具白名单会继续传到真正的工具执行边界。"""
         if not isinstance(query, str) or not query.strip():
             raise ValueError("query不能为空")
+        if user_context is not UNSET_CONTEXT:
+            validate_context(user_context)
+            if allowed_tool_names is not None:
+                raise ValueError("新请求的工具权限由身份生成，不能手工覆盖")
 
         try:
             route_decision = self.router.route(query)
@@ -151,7 +163,11 @@ class UnifiedAgent:
 
         if route_decision.route is AgentRoute.TOOL:
             try:
-                tool_result = self.tool_agent.run(query, allowed_tool_names=allowed_tool_names)
+                request_options = {} if user_context is UNSET_CONTEXT else {"user_context": user_context}
+                if request_key is None:
+                    tool_result = self.tool_agent.run(query, allowed_tool_names=allowed_tool_names, **request_options)
+                else:
+                    tool_result = self.tool_agent.run_request(query, allowed_tool_names=allowed_tool_names, request_key=request_key, **request_options)
             except ModelUnavailableError as exc:
                 return _build_degraded_result(
                     query=query,
@@ -204,7 +220,8 @@ class UnifiedAgent:
                 HumanMessage(content=query),
             ]
             try:
-                final_response = self.chat_model.invoke(messages)
+                with span("chat"):
+                    final_response = self.chat_model.invoke(messages)
             except ModelUnavailableError as exc:
                 return _build_degraded_result(
                     query=query,

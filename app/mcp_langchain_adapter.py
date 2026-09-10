@@ -5,6 +5,8 @@ from typing import Any, Protocol
 
 from langchain_core.tools import StructuredTool
 from mcp.types import CallToolResult, TextContent, Tool, ListToolsResult
+from app.business_audit import business_event
+from app.business_errors import BusinessError
 
 
 
@@ -22,8 +24,11 @@ class MCPClientProtocol(Protocol):
         ...
 
 
-class MCPToolExecutionError(ValueError):
+class MCPToolExecutionError(BusinessError):
     """MCP工具返回了可预期的执行失败。"""
+
+    def __init__(self, message, code="MCP_TOOL_ERROR"):
+        super().__init__(code, message)
 
 
 def _extract_text(result: CallToolResult) -> str:
@@ -38,9 +43,14 @@ def _extract_text(result: CallToolResult) -> str:
 
 def _convert_tool_result(result: CallToolResult) -> Any:
     """优先返回结构化结果，并把 MCP 业务失败转换成稳定异常。"""
+    payload = result.structured_content or {}
+    if isinstance(payload, dict):
+        for event in payload.get("audit", []):
+            business_event(event["stage"], event["event"], **event["data"], transport="mcp")
     if result.is_error:
         error_message = _extract_text(result)
-        raise MCPToolExecutionError(error_message or "MCP工具执行失败")
+        error = payload.get("error", {}) if isinstance(payload, dict) else {}
+        raise MCPToolExecutionError(error.get("message", error_message or "MCP工具执行失败"), error.get("code", "MCP_TOOL_ERROR"))
 
     structured_content = result.structured_content
 
@@ -77,7 +87,7 @@ def _build_langchain_tool(client: MCPClientProtocol, mcp_tool: Tool) -> Structur
         args_schema=mcp_tool.input_schema,
         func=invoke_tool,
         coroutine=ainvoke_tool,
-        metadata={"source": "mcp"},
+        metadata={"source": "mcp", "side_effects": tool_name == "create_ticket", "requires_identity": tool_name not in {"calculate", "multiply_numbers"}},
     )
 
 

@@ -3,6 +3,7 @@
 import logging
 import time
 from collections.abc import Callable
+from app.tracing import span, emit
 
 
 logger = logging.getLogger(__name__)
@@ -45,8 +46,12 @@ class RetryingChatModel:
         # max_attempts 包含首次调用，例如 2 表示首次调用加一次重试。
         for attempt in range(1, self.max_attempts + 1):
             try:
-                return self.model.invoke(model_input, *args, **kwargs)
+                with span("model", attempt=attempt):
+                    response = self.model.invoke(model_input, *args, **kwargs)
+                    emit("model", "usage", usage=getattr(response, "usage_metadata", None))
+                    return response
             except self.retryable_exceptions as exc:
+                emit("model", "retryable_error", attempt=attempt, error_type=type(exc).__name__)
                 if attempt == self.max_attempts:
                     logger.error(
                         "模型调用重试耗尽："

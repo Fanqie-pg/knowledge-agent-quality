@@ -18,32 +18,52 @@ from app.tool_agent import ToolAgent
 from app.tool_registry import build_tools
 from app.unified_agent import UnifiedAgent
 from app.resilient_model import RetryingChatModel
+from app.business_repository import SQLiteBusinessRepository
+from app.mcp_tool_registry import build_mcp_tools
 
 
-def build_unified_agent(tools: list[StructuredTool] | None = None) -> UnifiedAgent:
+def build_unified_agent(tools: list[StructuredTool] | None = None, *, rewrite_queries: bool = True, user_context=None, repository=None, tool_profile="current", transport="local") -> UnifiedAgent:
     """构建统一 Agent；允许注入本地工具或 MCP 适配后的工具。"""
     chat_model = build_chat_model()
     retriever = build_knowledge_retriever()
 
     router = IntentRouter(chat_model)
 
+    if transport not in {"local", "mcp"}:
+        raise ValueError("未知工具接入方式")
+    request_tools = None
     if tools is None:
-        tools = build_tools()
+        repository = repository or SQLiteBusinessRepository()
+        tools = build_tools(repository=repository, profile=tool_profile)
+        def request_tools(context):
+            if transport == "local":
+                return build_tools(user_context=context, repository=repository, profile=tool_profile)
+            return build_mcp_tools(user_context=context, database_path=repository.path, profile=tool_profile)
+    tool_agent = ToolAgent(chat_model, tools, user_context=user_context, tools_factory=request_tools)
 
-    tool_agent = ToolAgent(chat_model, tools)
-
-    rag_agent = RAGAgent(
-        chat_model=chat_model,
-        retriever=retriever,
-        k=5,
-        query_rewriter=QueryRewriter(chat_model),
-    )
+    rag_agent = build_rag_agent(chat_model, retriever, rewrite_queries=rewrite_queries)
     return UnifiedAgent(
         router=router,
         tool_agent=tool_agent,
         rag_agent=rag_agent,
         chat_model=chat_model,
+        user_context=user_context,
     )
+
+
+def build_rag_agent(chat_model, retriever, *, rewrite_queries=True, k=5):
+    """Runtime and experiments share identical RAG assembly."""
+    return RAGAgent(chat_model, retriever, k=k,
+                    query_rewriter=QueryRewriter(chat_model) if rewrite_queries else None)
+
+
+def build_conversation_agent(*, store=None, repository=None, transport="local", **limits):
+    """Share model and agents across users; pass trusted identity on every turn."""
+    from app.conversation_agent import ConversationAgent
+    from app.conversation_store import ConversationStore
+    repository = repository or SQLiteBusinessRepository()
+    unified = build_unified_agent(repository=repository, transport=transport)
+    return ConversationAgent(unified, store or ConversationStore(), repository, **limits)
 
 
 def build_chat_model() -> RetryingChatModel:
@@ -65,7 +85,7 @@ def build_chat_model() -> RetryingChatModel:
         max_retries=0,
     )
 
-    return RetryingChatModel(
+    model = RetryingChatModel(
         model=base_chat_model,
         max_attempts=2,
         retry_delay_seconds=0.5,
@@ -78,6 +98,11 @@ def build_chat_model() -> RetryingChatModel:
             InternalServerError,
         ),
     )
+    if os.getenv("EVALUATION_MAX_CALLS"):
+        from app.evaluation_records import CallBudget, attach_budget
+        budget = CallBudget(os.environ["EVALUATION_CALL_LEDGER"], int(os.environ["EVALUATION_MAX_CALLS"]))
+        model = attach_budget(model, budget)
+    return model
 
 
 def build_knowledge_retriever() -> KnowledgeRetriever:

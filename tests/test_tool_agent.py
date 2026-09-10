@@ -1,6 +1,9 @@
+import pytest
+
+pytestmark = pytest.mark.unit
+
 import logging
 
-import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
 
@@ -43,20 +46,21 @@ class FakeToolModel:
 
 
 def test_decide_binds_tools_and_returns_tool_call():
-    tools = build_tools()
+    tools = build_tools(profile="legacy")
     fake_model = FakeToolModel()
     agent = ToolAgent(fake_model, tools)
     result = agent.decide("12乘以8是多少？")
 
     assert fake_model.bound_tools == tools
-    assert fake_model.last_prompt == "12乘以8是多少？"
+    assert fake_model.last_prompt[-1].content == "12乘以8是多少？"
+    assert fake_model.last_prompt[0].type == "system"
     assert result is fake_model.response
     assert result.tool_calls[0]["name"] == "multiply_numbers"
     assert result.tool_calls[0]["args"] == {"a": 12, "b": 8}
 
 
 def test_execute_tool_calls_returns_correlated_tool_message():
-    tools = build_tools()
+    tools = build_tools(profile="legacy")
     fake_model = FakeToolModel()
     agent = ToolAgent(fake_model, tools)
     decision = agent.decide("12乘以8是多少？")
@@ -67,7 +71,7 @@ def test_execute_tool_calls_returns_correlated_tool_message():
     assert tool_messages[0].name == "multiply_numbers"
 
 def test_run_executes_tool_and_returns_final_answer():
-    tools = build_tools()
+    tools = build_tools(profile="legacy")
     fake_model = FakeToolModel()
     agent = ToolAgent(fake_model, tools)
     result = agent.run("12乘以8是多少？")
@@ -84,11 +88,12 @@ def test_run_executes_tool_and_returns_final_answer():
     assert len(fake_model.received_inputs) == 2
 
     second_input = fake_model.received_inputs[1]
-    assert len(second_input) == 3
-    assert second_input[0].content == "12乘以8是多少？"
-    assert second_input[1].tool_calls[0]["name"] == "multiply_numbers"
-    assert second_input[2].content == "96.0"
-    assert second_input[2].tool_call_id == "call-1"
+    assert len(second_input) == 4
+    assert '"invoked": true' in second_input[0].content
+    assert second_input[1].content == "12乘以8是多少？"
+    assert second_input[2].tool_calls[0]["name"] == "multiply_numbers"
+    assert second_input[3].content == "96.0"
+    assert second_input[3].tool_call_id == "call-1"
 
     assert result.requested_tool_names == ["multiply_numbers"]
     assert result.executed_tool_names == ["multiply_numbers"]
@@ -96,7 +101,7 @@ def test_run_executes_tool_and_returns_final_answer():
 
 
 def test_run_returns_direct_answer_without_tool_call():
-    tools = build_tools()
+    tools = build_tools(profile="legacy")
     fake_model = FakeToolModel()
     agent = ToolAgent(fake_model, tools)
     direct_response = AIMessage(
@@ -114,7 +119,7 @@ def test_run_returns_direct_answer_without_tool_call():
     assert len(fake_model.received_inputs) == 1
 
 
-def test_execute_tool_calls_converts_business_error_to_tool_message():
+def test_execute_tool_calls_converts_business_error_to_tool_message(seeded_business_repository, trusted_hr_context):
     decision = AIMessage(
         content="",
         tool_calls=[
@@ -126,9 +131,9 @@ def test_execute_tool_calls_converts_business_error_to_tool_message():
             }
         ],
     )
-    tools = build_tools()
+    tools = build_tools(profile="legacy", user_context=trusted_hr_context, repository=seeded_business_repository)
     fake_model = FakeToolModel()
-    agent = ToolAgent(fake_model, tools)
+    agent = ToolAgent(fake_model, tools, user_context=trusted_hr_context)
     tool_messages = agent.execute_tool_calls(decision)
 
     assert len(tool_messages) == 1
@@ -150,7 +155,7 @@ def test_execute_tool_calls_converts_unknown_tool_to_error_message():
             }
         ],
     )
-    tools = build_tools()
+    tools = build_tools(profile="legacy")
     fake_model = FakeToolModel()
     agent = ToolAgent(fake_model, tools)
 
@@ -189,7 +194,7 @@ def test_execute_tool_calls_converts_invalid_args_to_error_message(tool_args, ex
         ],
     )
 
-    agent = ToolAgent(FakeToolModel(), build_tools())
+    agent = ToolAgent(FakeToolModel(), build_tools(profile="legacy"))
 
     tool_messages = agent.execute_tool_calls(decision)
 
@@ -222,7 +227,7 @@ def test_execute_tool_calls_hides_unexpected_internal_error(caplog):
         ],
     )
 
-    agent = ToolAgent(FakeToolModel(), [unstable_tool])
+    agent = ToolAgent(FakeToolModel(), [unstable_tool], public_tools=[unstable_tool.name])
 
     with caplog.at_level(logging.ERROR, logger="app.tool_agent"):
         tool_messages = agent.execute_tool_calls(decision)
@@ -252,7 +257,7 @@ def test_execute_tool_calls_blocks_unauthorized_tool():
         ],
     )
 
-    agent = ToolAgent(FakeToolModel(), build_tools())
+    agent = ToolAgent(FakeToolModel(), build_tools(profile="legacy"))
 
     tool_messages = agent.execute_tool_calls(decision, allowed_tool_names=[])
 
@@ -266,7 +271,7 @@ def test_execute_tool_calls_blocks_unauthorized_tool():
 
 def test_run_records_blocked_unauthorized_tool():
     fake_model = FakeToolModel()
-    agent = ToolAgent(fake_model, build_tools())
+    agent = ToolAgent(fake_model, build_tools(profile="legacy"))
 
     result = agent.run("12乘以8是多少？", allowed_tool_names=[])
 

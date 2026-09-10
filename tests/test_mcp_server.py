@@ -12,25 +12,22 @@ pytestmark = pytest.mark.integration
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def build_server_parameters() -> StdioServerParameters:
-    return StdioServerParameters(
-        command=sys.executable,
-        args=["-m", "app.mcp_server"],
-        cwd=PROJECT_ROOT,
-    )
+def build_server_parameters(repository, user_context) -> StdioServerParameters:
+    from app.mcp_tool_registry import UserBoundMCPClient
+    return UserBoundMCPClient(user_context=user_context, database_path=repository.path, profile="legacy").client().server_parameters
 
 
-def call_mcp_tool(tool_name: str, arguments: dict[str, object]):
+def call_mcp_tool(tool_name: str, arguments: dict[str, object], repository, user_context):
     async def call_tool():
-        async with Client(build_server_parameters()) as client:
+        async with Client(build_server_parameters(repository, user_context)) as client:
             return await client.call_tool(tool_name, arguments)
 
     return asyncio.run(call_tool())
 
 
-def test_mcp_server_exposes_expected_tools():
+def test_mcp_server_exposes_expected_tools(seeded_business_repository, trusted_hr_context):
     async def list_tools():
-        async with Client(build_server_parameters()) as client:
+        async with Client(build_server_parameters(seeded_business_repository, trusted_hr_context)) as client:
             return await client.list_tools()
 
     result = asyncio.run(list_tools())
@@ -49,9 +46,9 @@ def test_mcp_server_exposes_expected_tools():
     assert leave_schema["required"] == ["employee_id"]
 
 
-def test_mcp_server_calls_tools_successfully():
+def test_mcp_server_calls_tools_successfully(seeded_business_repository, trusted_hr_context):
     async def call_tools():
-        async with Client(build_server_parameters()) as client:
+        async with Client(build_server_parameters(seeded_business_repository, trusted_hr_context)) as client:
             multiply_result = await client.call_tool(
                 "multiply_numbers",
                 {"a": 12, "b": 8},
@@ -66,35 +63,35 @@ def test_mcp_server_calls_tools_successfully():
 
     assert multiply_result.is_error is False
     assert multiply_result.content[0].text == "96.0"
-    assert multiply_result.structured_content == {"result": 96.0}
+    assert multiply_result.structured_content["result"] == 96.0
 
     assert leave_result.is_error is False
     assert leave_result.content[0].text == "5"
-    assert leave_result.structured_content == {"result": 5}
+    assert leave_result.structured_content["result"] == 5
+    assert any(event["event"] == "protected_read" for event in leave_result.structured_content["audit"])
 
 
-def test_mcp_server_rejects_invalid_tool_arguments():
-    result = call_mcp_tool("multiply_numbers", {"a": "abc", "b": 8})
-
-    assert result.is_error is True
-    assert result.structured_content is None
-    assert "multiply_numbers" in result.content[0].text
-    assert "abc" in result.content[0].text
-
-
-def test_mcp_server_rejects_unknown_tool():
-    result = call_mcp_tool("missing_tool", {})
+def test_mcp_server_rejects_invalid_tool_arguments(seeded_business_repository, trusted_hr_context):
+    result = call_mcp_tool("multiply_numbers", {"a": "abc", "b": 8}, seeded_business_repository, trusted_hr_context)
 
     assert result.is_error is True
-    assert result.structured_content is None
+    assert result.structured_content["error"]["code"] == "INVALID_ARGUMENTS"
+    assert "abc" not in result.content[0].text
+
+
+def test_mcp_server_rejects_unknown_tool(seeded_business_repository, trusted_hr_context):
+    result = call_mcp_tool("missing_tool", {}, seeded_business_repository, trusted_hr_context)
+
+    assert result.is_error is True
+    assert result.structured_content["error"]["code"] == "UNKNOWN_TOOL"
     assert result.content[0].text == "Unknown tool: missing_tool"
 
 
-def test_mcp_server_returns_safe_business_error():
-    result = call_mcp_tool("get_leave_balance", {"employee_id": "E999"})
+def test_mcp_server_returns_safe_business_error(seeded_business_repository, trusted_hr_context):
+    result = call_mcp_tool("get_leave_balance", {"employee_id": "E999"}, seeded_business_repository, trusted_hr_context)
 
     assert result.is_error is True
-    assert result.structured_content is None
+    assert result.structured_content["error"]["code"] == "EMPLOYEE_NOT_FOUND"
 
     error_text = result.content[0].text
     assert error_text.endswith("员工不存在")

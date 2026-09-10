@@ -55,7 +55,7 @@ def test_adapter_converts_mcp_tool_metadata():
     assert tool.name == "multiply_numbers"
     assert tool.description == "计算两个数的乘积。"
     assert tool.args_schema == MCP_MULTIPLY_TOOL.input_schema
-    assert tool.metadata == {"source": "mcp"}
+    assert tool.metadata == {"source": "mcp", "side_effects": False, "requires_identity": False}
 
 
 def test_adapter_supports_synchronous_tool_invocation():
