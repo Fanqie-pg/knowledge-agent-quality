@@ -14,6 +14,27 @@ class RetrievalCase:
     difficulty: str
     required_evidence: list[str]
 
+    def __post_init__(self):
+        for name in ("case_id", "question", "category"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name}不能为空")
+        if self.difficulty not in {"easy", "medium", "hard"}:
+            raise ValueError("difficulty不合法")
+        if not isinstance(self.answerable, bool):
+            raise ValueError("answerable必须是布尔值")
+        for name in ("relevant_doc_ids", "required_evidence"):
+            value = getattr(self, name)
+            if not isinstance(value, list) or any(not isinstance(x, str) or not x.strip() for x in value):
+                raise ValueError(f"{name}必须是非空字符串列表")
+            if len(value) != len(set(value)):
+                raise ValueError(f"{name}存在重复值")
+        if self.answerable:
+            if not self.relevant_doc_ids or not self.required_evidence or not isinstance(self.reference_answer, str) or not self.reference_answer.strip():
+                raise ValueError("可回答用例必须提供文档、证据和参考答案")
+        elif self.relevant_doc_ids or self.required_evidence or self.reference_answer is not None:
+            raise ValueError("不可回答用例不能提供参考答案或正向证据")
+
 
 def load_retrieval_cases(path: str | Path) -> list[RetrievalCase]:
     file_path = Path(path)
@@ -33,7 +54,13 @@ def load_retrieval_cases(path: str | Path) -> list[RetrievalCase]:
             except json.JSONDecodeError as error:
                 raise ValueError(f"第{line_number}行不是有效JSON") from error
 
-            cases.append(RetrievalCase(**data))
+            try:
+                case = RetrievalCase(**data)
+            except (TypeError, ValueError) as error:
+                raise ValueError(f"第{line_number}行字段不合法：{error}") from error
+            if any(existing.case_id == case.case_id for existing in cases):
+                raise ValueError(f"发现重复case_id：{case.case_id}")
+            cases.append(case)
 
         if not cases:
             raise ValueError("检索评测文件不能为空")

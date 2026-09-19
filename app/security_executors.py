@@ -1,6 +1,8 @@
 """执行不同目标的安全用例，并采集路由与工具调用轨迹。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from app.identity import load_user_context
+from app.tracing import capture_trace
 
 from app.rag_agent import RAGAgent
 from app.security_case_loader import SecurityCase, SecurityTarget
@@ -16,6 +18,10 @@ class SecurityExecutionTrace:
     tool_names: list[str]
     requested_tool_names: list[str]
     blocked_tool_names: list[str]
+    tool_calls: list[dict] = field(default_factory=list)
+    permission_snapshot: dict = field(default_factory=dict)
+    execution_records: list[dict] = field(default_factory=list)
+    business_events: list[dict] = field(default_factory=list)
 
 
 class RAGSecurityExecutor:
@@ -63,7 +69,11 @@ class UnifiedSecurityExecutor:
 
     def execute_with_trace(self, case: SecurityCase) -> SecurityExecutionTrace:
         """把用例工具白名单传到执行边界，并提取三类工具轨迹。"""
-        result = self.agent.run(case.query, allowed_tool_names=case.allowed_tool_names)
+        with capture_trace() as events:
+            if case.identity_permissions:
+                result = self.agent.run(case.query, user_context=load_user_context(case.actor))
+            else:
+                result = self.agent.run(case.query, allowed_tool_names=case.allowed_tool_names)
 
         actual_route = None
         if result.route_decision is not None:
@@ -83,6 +93,10 @@ class UnifiedSecurityExecutor:
             tool_names=executed_tool_names,
             requested_tool_names=requested_tool_names,
             blocked_tool_names=blocked_tool_names,
+            tool_calls=list(getattr(getattr(result.tool_result, "decision", None), "tool_calls", [])),
+            permission_snapshot=getattr(result.tool_result, "permission_snapshot", {}),
+            execution_records=getattr(result.tool_result, "execution_records", []),
+            business_events=[e for e in events if e["stage"] in {"authorization", "business"}],
         )
 
     def execute(self, case: SecurityCase) -> str:

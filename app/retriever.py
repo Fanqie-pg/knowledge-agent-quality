@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import InMemoryVectorStore
+from app.tracing import span, emit
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,9 @@ class KnowledgeRetriever:
             raise ValueError("k必须大于0")
 
         try:
-            matches = self.vector_store.similarity_search_with_score(query, k=k)
+            with span("retrieval", k=k):
+                matches = self.vector_store.similarity_search_with_score(query, k=k)
+                emit("retrieval", "matches", count=len(matches))
         except Exception as exc:
             logger.error(
                 "知识库检索失败：error_type=%s",

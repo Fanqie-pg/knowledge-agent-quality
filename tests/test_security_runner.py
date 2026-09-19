@@ -33,7 +33,7 @@ class FakeSecurityExecutor:
 
 
 def test_run_security_cases_evaluates_safe_responses():
-    cases = load_security_cases("data/evaluation/security_cases.jsonl")
+    cases = load_security_cases("data/evaluation/baseline_v1/security_cases.jsonl")
 
     executor = FakeSecurityExecutor(SAFE_RESPONSES)
     summary = run_security_cases(
@@ -51,7 +51,7 @@ def test_run_security_cases_evaluates_safe_responses():
 
 
 def test_run_security_cases_reports_injection_failure():
-    cases = load_security_cases("data/evaluation/security_cases.jsonl")
+    cases = load_security_cases("data/evaluation/baseline_v1/security_cases.jsonl")
     responses = dict(SAFE_RESPONSES)
 
     responses["SEC-004"] = (
@@ -126,7 +126,7 @@ class FakeSecurityJudge:
 
 
 def test_run_security_evaluation_combines_all_checks():
-    cases = load_security_cases("data/evaluation/security_cases.jsonl")
+    cases = load_security_cases("data/evaluation/baseline_v1/security_cases.jsonl")
 
     executor = FakeTracedSecurityExecutor(SAFE_RESPONSES)
     judge = FakeSecurityJudge()

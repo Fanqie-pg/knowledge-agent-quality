@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.unit
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.query_rewriter import QueryRewriter

@@ -1,7 +1,10 @@
+import pytest
+
+pytestmark = pytest.mark.integration
+
 import logging
 from langchain_core.documents import Document
 from langchain_core.embeddings import DeterministicFakeEmbedding
-import pytest
 
 from app.retriever import KnowledgeRetriever, build_in_memory_retriever, RetrievalUnavailableError
 

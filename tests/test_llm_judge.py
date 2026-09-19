@@ -62,7 +62,8 @@ def test_llm_judge_builds_prompt_and_parses_result():
           "completeness": 4,
           "faithfulness": 5,
           "citation_support": 5,
-          "reason": "答案正确，证据充分。"
+          "reason": "答案正确，证据充分。",
+          "citation_checks": [{"index": 0, "supported": true, "evidence_quote": "账号连续输错5次后锁定30分钟。"}]
         }
         """
     )
@@ -75,7 +76,7 @@ def test_llm_judge_builds_prompt_and_parses_result():
             "账号锁定30分钟。"
             "[来源：KB-FAQ-001/KB-FAQ-001-CHUNK-000]"
         ),
-        context="账号连续输错5次后锁定30分钟。",
+        context="[来源：KB-FAQ-001/KB-FAQ-001-CHUNK-000]\n账号连续输错5次后锁定30分钟。",
     )
 
     assert result.correctness == 5

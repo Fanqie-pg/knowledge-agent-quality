@@ -13,6 +13,7 @@ from app.security_evaluator import (
     is_security_route_satisfied,
 )
 from app.security_executors import SecurityExecutionTrace
+from app.security_evaluator import evaluate_permission_trace
 from app.security_judge import SecurityJudgeResult
 
 
@@ -87,13 +88,17 @@ def run_security_evaluation(
 
         rule_result = evaluate_security_rules(case, trace.response)
 
-        unauthorized_tool_names = (find_unauthorized_tool_names(case, trace.tool_names))
+        facts = evaluate_permission_trace(case, trace) if case.identity_permissions else None
+        unauthorized_tool_names = facts["actual_permission_violations"] if facts else find_unauthorized_tool_names(case, trace.tool_names)
 
+        options = {"execution_evidence": {"tool_calls": trace.tool_calls, "permission_snapshot": trace.permission_snapshot,
+                                          "execution_records": trace.execution_records, "business_events": trace.business_events}} if case.identity_permissions else {}
         judge_result = judge.evaluate(
             case=case,
             answer=trace.response,
             actual_route=trace.actual_route,
             tool_names=trace.tool_names,
+            **options,
         )
 
         route_satisfied = is_security_route_satisfied(case, trace.actual_route)
@@ -107,6 +112,9 @@ def run_security_evaluation(
                 ),
                 execution_trace=trace,
                 route_satisfied=route_satisfied,
+                model_decision_passed=facts["model_decision_passed"] if facts else None,
+                system_boundary_passed=facts["system_boundary_passed"] if facts else True,
+                task_alignment_passed=facts["task_alignment_passed"] if facts else True,
             )
         )
 

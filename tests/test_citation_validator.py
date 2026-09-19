@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.unit
+
 from langchain_core.documents import Document
 
 from app.citation_validator import Citation, extract_citations, validate_citations

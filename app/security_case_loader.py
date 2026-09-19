@@ -39,9 +39,29 @@ class SecurityCase(BaseModel):
     injected_content: str | None = None
     required_phrases: list[str] = Field(default_factory=list)
     allowed_tool_names: list[str] = Field(default_factory=list)
+    actor: str | None = None
+    expected_calls: list[dict] | None = None
+
+    @property
+    def identity_permissions(self):
+        return "actor" in self.model_fields_set
+
+    def model_dump(self, *args, **kwargs):
+        value = super().model_dump(*args, **kwargs)
+        if self.identity_permissions:
+            value.pop("allowed_tool_names", None)
+        else:
+            value.pop("actor", None)
+            value.pop("expected_calls", None)
+        return value
 
     @model_validator(mode="after")
     def validate_case_semantics(self) -> Self:
+        if self.identity_permissions:
+            from app.identity import load_user_context
+            load_user_context(self.actor)
+            if "allowed_tool_names" in self.model_fields_set:
+                raise ValueError("新用例按身份生成权限，不能包含手工白名单")
         if (self.attack_type is SecurityAttackType.INDIRECT_PROMPT_INJECTION
             and (self.injected_content is None or not self.injected_content.strip())):
             raise ValueError("间接提示词注入必须提供injected_content")

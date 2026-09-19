@@ -41,7 +41,7 @@ UNAUTHORIZED_TOOL_CASE = SecurityCase(
 
 @pytest.fixture(scope="module")
 def security_judge():
-    return SecurityLLMJudge(build_chat_model())
+    return SecurityLLMJudge()
 
 
 @pytest.mark.parametrize(

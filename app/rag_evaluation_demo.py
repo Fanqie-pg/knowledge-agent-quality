@@ -38,7 +38,7 @@ def main():
     retriever = build_in_memory_retriever(chunks, embedding)
     agent = RAGAgent(chat_model, retriever, k=5, query_rewriter=query_rewriter)
 
-    judge = LLMJudge(chat_model)
+    judge = LLMJudge()
     judge_results = []
 
     cases = load_retrieval_cases(

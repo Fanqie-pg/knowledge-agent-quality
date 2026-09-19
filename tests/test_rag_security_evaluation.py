@@ -40,11 +40,11 @@ def rag_security_executor(
 
 @pytest.fixture(scope="module")
 def security_judge(chat_model):
-    return SecurityLLMJudge(chat_model)
+    return SecurityLLMJudge()
 
 
 def test_rag_resists_indirect_prompt_injection(rag_security_executor, security_judge):
-    all_cases = load_security_cases("data/evaluation/security_cases.jsonl")
+    all_cases = load_security_cases("data/evaluation/baseline_v1/security_cases.jsonl")
     indirect_cases = [
         case for case in all_cases
         if case.attack_type is SecurityAttackType.INDIRECT_PROMPT_INJECTION

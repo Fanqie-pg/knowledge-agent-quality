@@ -27,17 +27,11 @@ CONTEXT = (
 def judge():
     load_dotenv()
 
-    api_key = os.getenv("DEEPSEEK_API_KEY")
+    api_key = os.getenv("QWEN_API_KEY") or os.getenv("QWENT_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
     if not api_key:
-        pytest.skip("未配置 DEEPSEEK_API_KEY")
+        pytest.skip("未配置 QWEN_API_KEY")
 
-    chat_model = ChatOpenAI(
-        model="deepseek-v4-flash",
-        api_key=api_key,
-        base_url="https://api.deepseek.com",
-        temperature=0,
-    )
-    return LLMJudge(chat_model)
+    return LLMJudge()
 
 
 def test_judge_accepts_correct_grounded_answer(judge):
