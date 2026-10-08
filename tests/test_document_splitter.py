@@ -1,5 +1,8 @@
-from langchain_core.documents import Document
 import pytest
+
+pytestmark = pytest.mark.unit
+
+from langchain_core.documents import Document
 
 from app.document_splitter import split_document, split_documents, split_document_recursive, split_documents_recursive
 

@@ -1,5 +1,8 @@
 import pytest
 
+pytestmark = pytest.mark.unit
+
+
 from app.retrieval_metrics import recall_at_k, reciprocal_rank, mean_reciprocal_rank, evidence_recall_at_k
 
 

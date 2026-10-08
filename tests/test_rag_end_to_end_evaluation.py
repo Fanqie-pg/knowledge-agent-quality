@@ -1,4 +1,6 @@
 import os
+import json
+from dataclasses import asdict
 
 import pytest
 from dotenv import load_dotenv
@@ -13,6 +15,7 @@ from app.rag_agent import RAGAgent, INSUFFICIENT_KNOWLEDGE_RESPONSE
 from app.rag_evaluator import evaluate_rag_answer
 from app.retrieval_case_loader import load_retrieval_cases
 from app.retriever import build_in_memory_retriever
+from app.tracing import emit
 
 
 pytestmark = pytest.mark.evaluation
@@ -26,43 +29,18 @@ def rag_evaluation_system():
     if not api_key:
         pytest.skip("未配置 DEEPSEEK_API_KEY")
 
-    chat_model = ChatOpenAI(
-        model="deepseek-v4-flash",
-        api_key=api_key,
-        base_url="https://api.deepseek.com",
-        temperature=0,
-    )
+    from app.agent_factory import build_chat_model, build_knowledge_retriever, build_rag_agent
+    chat_model = build_chat_model()
+    agent = build_rag_agent(chat_model, build_knowledge_retriever())
 
-    documents = load_knowledge_documents("data/knowledge")
-    chunks = split_documents_recursive(
-        documents,
-        chunk_size=500,
-        chunk_overlap=50,
-    )
-
-    embedding = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-small-zh-v1.5",
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True},
-    )
-
-    retriever = build_in_memory_retriever(chunks, embedding)
-
-    agent = RAGAgent(
-        chat_model=chat_model,
-        retriever=retriever,
-        k=5,
-        query_rewriter=QueryRewriter(chat_model),
-    )
-
-    judge = LLMJudge(chat_model)
+    judge = LLMJudge()
 
     return agent, judge
 
 def test_rag_end_to_end_answers_multi_document_question(rag_evaluation_system):
     agent, judge = rag_evaluation_system
     cases = load_retrieval_cases(
-        "data/evaluation/retrieval_cases.jsonl"
+        "data/evaluation/baseline_v1/retrieval_cases.jsonl"
     )
     case = next(
         case for case in cases
@@ -102,7 +80,7 @@ def test_rag_end_to_end_answers_multi_document_question(rag_evaluation_system):
 def test_rag_quality_gate_over_evaluation_dataset(rag_evaluation_system):
     agent, judge = rag_evaluation_system
     cases = load_retrieval_cases(
-        "data/evaluation/retrieval_cases.jsonl"
+        "data/evaluation/baseline_v1/retrieval_cases.jsonl"
     )
 
     deterministic_results = []
@@ -117,6 +95,11 @@ def test_rag_quality_gate_over_evaluation_dataset(rag_evaluation_system):
             answer=run_result.final_response.content,
             retrieval_results=run_result.retrieval_results,
         )
+
+        emit("rag_evaluation", "answer_record", case_id=case.case_id, question=case.question,
+             answer=run_result.final_response.content, context=run_result.context,
+             retrieval_query=run_result.retrieval_query, rules=asdict(deterministic_result),
+             retrieval=[{"doc_id":item.document.metadata["doc_id"],"chunk_id":item.document.metadata["chunk_id"]} for item in run_result.retrieval_results])
 
         reference_answer = (
             case.reference_answer
@@ -133,6 +116,7 @@ def test_rag_quality_gate_over_evaluation_dataset(rag_evaluation_system):
 
         deterministic_results.append(deterministic_result)
         judge_results.append(judge_result)
+        emit("rag_evaluation", "judge_record", case_id=case.case_id, scores=judge_result.model_dump(), passed=judge_result.passed)
 
         case_details.append(
             {
@@ -181,6 +165,8 @@ def test_rag_quality_gate_over_evaluation_dataset(rag_evaluation_system):
         "mean_citation_support": mean_citation_support,
         "case_details": case_details,
     }
+
+    print(json.dumps(summary,ensure_ascii=False))
 
     assert deterministic_pass_rate == 1.0, summary
     assert judge_pass_rate >= 0.9, summary

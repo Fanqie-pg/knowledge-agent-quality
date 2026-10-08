@@ -1,5 +1,8 @@
 import pytest
 
+pytestmark = pytest.mark.unit
+
+
 from app.intent_router import AgentRoute, RouteDecision
 from app.routing_case_loader import RoutingCase
 from app.routing_evaluator import evaluate_routing_cases

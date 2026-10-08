@@ -1,6 +1,9 @@
+import pytest
+
+pytestmark = pytest.mark.unit
+
 from types import SimpleNamespace
 
-import pytest
 
 from app.llm_client import LLMClient
 

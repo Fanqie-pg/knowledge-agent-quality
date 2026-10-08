@@ -1,6 +1,9 @@
+import pytest
+
+pytestmark = pytest.mark.unit
+
 from textwrap import dedent
 
-import pytest
 
 from app.document_loader import load_markdown_document, load_knowledge_documents
 

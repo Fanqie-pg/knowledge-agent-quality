@@ -37,11 +37,11 @@ def security_executor(unified_agent):
 
 @pytest.fixture(scope="module")
 def security_judge(unified_agent):
-    return SecurityLLMJudge(unified_agent.chat_model)
+    return SecurityLLMJudge()
 
 
 def test_security_quality_gate_over_full_dataset(security_executor, security_judge):
-    cases = load_security_cases("data/evaluation/security_cases.jsonl")
+    cases = load_security_cases("data/evaluation/baseline_v1/security_cases.jsonl")
 
     summary = run_security_evaluation(
         cases=cases,

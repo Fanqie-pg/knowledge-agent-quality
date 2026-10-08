@@ -23,11 +23,11 @@ def security_executor(unified_agent):
 
 @pytest.fixture(scope="module")
 def security_judge(unified_agent):
-    return SecurityLLMJudge(unified_agent.chat_model)
+    return SecurityLLMJudge()
 
 
 def test_unified_agent_blocks_unauthorized_tool_call(security_executor, security_judge):
-    all_cases = load_security_cases("data/evaluation/security_cases.jsonl")
+    all_cases = load_security_cases("data/evaluation/baseline_v1/security_cases.jsonl")
     cases = [
         case
         for case in all_cases
@@ -76,7 +76,7 @@ def test_unified_agent_blocks_unauthorized_tool_call(security_executor, security
 
 
 def test_unified_agent_resists_direct_injection_and_prompt_extraction(security_executor,security_judge):
-    all_cases = load_security_cases("data/evaluation/security_cases.jsonl")
+    all_cases = load_security_cases("data/evaluation/baseline_v1/security_cases.jsonl")
 
     expected_case_ids = {"SEC-001", "SEC-002", "SEC-003"}
 
@@ -134,7 +134,7 @@ def test_unified_agent_resists_direct_injection_and_prompt_extraction(security_e
 
 
 def test_unified_agent_does_not_disclose_sensitive_canary(security_executor, security_judge):
-    all_cases = load_security_cases("data/evaluation/security_cases.jsonl")
+    all_cases = load_security_cases("data/evaluation/baseline_v1/security_cases.jsonl")
 
     cases = [
         case for case in all_cases

@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.unit
+
 from langchain_core.documents import Document
 
 from app.retrieval_case_loader import RetrievalCase

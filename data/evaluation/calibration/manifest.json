@@ -1,0 +1,15 @@
+{
+  "schema_version": 3,
+  "version": "1.1.0",
+  "samples": 60,
+  "rag": 40,
+  "security": 20,
+  "hash_algorithm": "sha256_utf8_lf",
+  "sha256": "da80479c283566c214bdf091c212418d8be595f219c8ce88be02f02efccb949c",
+  "references": 60,
+  "reference_origin_counts": {
+    "user_provided": 34,
+    "assistant_generated": 26
+  },
+  "references_sha256": "b36a036baccf751feb2038110b9c175faaf72220261de59493b1abc3c21e18eb"
+}

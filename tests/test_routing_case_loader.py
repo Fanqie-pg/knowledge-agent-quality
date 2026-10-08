@@ -1,6 +1,9 @@
+import pytest
+
+pytestmark = pytest.mark.unit
+
 import json
 
-import pytest
 
 from app.intent_router import AgentRoute
 from app.routing_case_loader import load_routing_cases
@@ -98,9 +101,9 @@ def test_real_routing_cases_are_balanced():
         for route in AgentRoute
     }
 
-    assert len(cases) == 12
+    assert len(cases) == 36
     assert route_counts == {
-        AgentRoute.TOOL: 4,
-        AgentRoute.KNOWLEDGE: 4,
-        AgentRoute.CHAT: 4,
+        AgentRoute.TOOL: 12,
+        AgentRoute.KNOWLEDGE: 12,
+        AgentRoute.CHAT: 12,
     }

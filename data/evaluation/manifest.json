@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "dataset_version": "2.2.0",
+  "hash_algorithm": "sha256_utf8_lf",
+  "expected_counts": {
+    "retrieval": 60,
+    "routing": 36,
+    "security": 30
+  },
+  "expected_splits": {
+    "retrieval": {
+      "dev": 40,
+      "holdout": 20
+    },
+    "routing": {
+      "dev": 24,
+      "holdout": 12
+    },
+    "security": {
+      "dev": 20,
+      "holdout": 10
+    }
+  },
+  "sha256": {
+    "data/knowledge/KB-API-001.md": "16d9ced66be0e8aa7ecf48a6a268d977f241feffdb05b2eefe3abc8e6369fd34",
+    "data/knowledge/KB-FAQ-001.md": "6780a38184f492ab1db274150d5b7bfb141c8c7f775a4e32d184b8cf2ff8b5e3",
+    "data/knowledge/KB-HR-001.md": "258ce2071ed0cd3cc2bac1e7b4357400a3eb2625f369390d479d7a040dad203d",
+    "data/knowledge/KB-PRODUCT-001.md": "a8858666488f0df3356ce5e0450cc04a836ec6ab519192a376bf49000b8bd280",
+    "data/knowledge/KB-SOP-001.md": "b3e6a9a3e15ebc1b624c772ff79e64db071779523716a9bf33330f7dfc573d3f",
+    "data/evaluation/case_metadata.jsonl": "deb283cae2d70233b0c86512fb1c8a3d3432453a2c6f966012acb61f869b52f8",
+    "data/evaluation/retrieval_cases.jsonl": "a2712b357c9fd10d84f177adece0402d8f7dc3b4dbf0c197cd4a6c19f9ba2e88",
+    "data/evaluation/routing_cases.jsonl": "707237e2168019b5c052d3060d364c2c3688d15f68798d605d61317fa82f7329",
+    "data/evaluation/security_cases.jsonl": "3120689b8279e3d4ab84e266bf95fa591dc03bbcd6aabaaa0339e116ce2d83fc",
+    "data/evaluation/baseline_v1/retrieval_cases.jsonl": "ff4ce5b2f6ad11e18c85e96c4f7c3ad6b27acf8536958f02b2f5dc23d5d1436e",
+    "data/evaluation/baseline_v1/routing_cases.jsonl": "b6dbb282b25b5334c69a0ab8ee6657ebb63410413b80595b36b8a301cdcf09cd",
+    "data/evaluation/baseline_v1/security_cases.jsonl": "90f297f0ccae2357546e50cccb95ba93a8e309ad2dd6626d508fa1f60f94bf3b",
+    "data/evaluation/tool_control_v2/cases.jsonl": "24cba53abb03d1c0f2c0646fe343229e8fe79f651040ba060fd488afdeac8ef3"
+  },
+  "permission_policy": "identity-derived-v2"
+}

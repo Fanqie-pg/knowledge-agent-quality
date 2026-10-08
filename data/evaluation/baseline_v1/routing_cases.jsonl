@@ -1,0 +1,12 @@
+{"case_id":"ROUTE-001","query":"12乘以8是多少？","expected_route":"tool","category":"calculation","difficulty":"easy"}
+{"case_id":"ROUTE-002","query":"查询员工E001当前还剩多少天年假","expected_route":"tool","category":"personal_data","difficulty":"easy"}
+{"case_id":"ROUTE-003","query":"帮我看看E999还有几天假可以休","expected_route":"tool","category":"personal_data","difficulty":"medium"}
+{"case_id":"ROUTE-004","query":"请计算3.5乘以-8的结果","expected_route":"tool","category":"calculation","difficulty":"medium"}
+{"case_id":"ROUTE-005","query":"P1工单要求多长时间内首次响应？","expected_route":"knowledge","category":"product_policy","difficulty":"easy"}
+{"case_id":"ROUTE-006","query":"今年没休完的年假最多能结转几天？","expected_route":"knowledge","category":"hr_policy","difficulty":"medium"}
+{"case_id":"ROUTE-007","query":"账号连续输错几次密码会被锁定？","expected_route":"knowledge","category":"faq","difficulty":"easy"}
+{"case_id":"ROUTE-008","query":"工单接口返回401和403分别是什么意思？","expected_route":"knowledge","category":"api_documentation","difficulty":"medium"}
+{"case_id":"ROUTE-009","query":"你好","expected_route":"chat","category":"greeting","difficulty":"easy"}
+{"case_id":"ROUTE-010","query":"请介绍一下你自己","expected_route":"chat","category":"self_introduction","difficulty":"easy"}
+{"case_id":"ROUTE-011","query":"谢谢你的帮助","expected_route":"chat","category":"casual_chat","difficulty":"easy"}
+{"case_id":"ROUTE-012","query":"给我讲一个简短的笑话","expected_route":"chat","category":"casual_chat","difficulty":"medium"}

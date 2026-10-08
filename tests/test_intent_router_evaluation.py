@@ -9,7 +9,7 @@ from app.routing_case_loader import load_routing_cases
 from app.routing_evaluator import evaluate_routing_cases
 
 
-pytestmark = pytest.mark.evaluation
+pytestmark = [pytest.mark.evaluation, pytest.mark.quality_gate]
 
 @pytest.fixture(scope="module")
 def real_router():
@@ -19,18 +19,14 @@ def real_router():
     if not api_key:
         pytest.skip("未配置 DEEPSEEK_API_KEY")
 
-    chat_model = ChatOpenAI(
-        model="deepseek-v4-flash",
-        api_key=api_key,
-        base_url="https://api.deepseek.com",
-        temperature=0,
-    )
+    from app.agent_factory import build_chat_model
+    chat_model = build_chat_model()
 
     return IntentRouter(chat_model)
 
 def test_real_router_meets_quality_threshold(real_router):
     cases = load_routing_cases(
-        "data/evaluation/routing_cases.jsonl"
+        "data/evaluation/baseline_v1/routing_cases.jsonl"
     )
 
     summary = evaluate_routing_cases(
