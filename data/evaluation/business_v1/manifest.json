@@ -1,0 +1,19 @@
+{
+  "version": "1.1.0",
+  "source": "assistant_authored_from_approved_spec",
+  "agent_case_count": 13,
+  "agent_transport_tasks": 26,
+  "routing_case_count": 12,
+  "authorization_case_ids": [
+    "BUS-004",
+    "BUS-006",
+    "BUS-011",
+    "BUS-012",
+    "BUS-013"
+  ],
+  "files": {
+    "agent_cases.jsonl": "9fd83707f7fceb4af23b2b3ffd4985b69fc0b612c97b3e2539f94fd824895711",
+    "routing_cases.jsonl": "a260b079285b0e492c32a4a15298120fbf6be38f7fe66c0f83f4795544d95f71",
+    "argument_expectations.json": "e92db0f130dbacb1d9b4ff18b0238b1a36abc1f95b1294f302eed550be7e8bbb"
+  }
+}

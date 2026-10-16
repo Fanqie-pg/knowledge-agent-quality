@@ -9,7 +9,7 @@ pytestmark = pytest.mark.evaluation
 
 @pytest.fixture(scope="module")
 def unified_agent():
-    return build_unified_agent()
+    return build_unified_agent(tool_profile="legacy")
 
 
 def test_unified_agent_executes_tool_route(unified_agent):

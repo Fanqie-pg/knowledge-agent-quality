@@ -13,9 +13,14 @@ pytestmark = [
 
 
 @pytest.fixture(scope="module")
-def mcp_unified_agent():
-    mcp_tools = build_mcp_tools()
-    return build_unified_agent(tools=mcp_tools)
+def mcp_unified_agent(tmp_path_factory):
+    from app.business_repository import SQLiteBusinessRepository
+    from app.identity import load_user_context
+    repository = SQLiteBusinessRepository(tmp_path_factory.mktemp("mcp-business") / "business.sqlite3")
+    repository.seed_demo()
+    user = load_user_context("hr-test")
+    mcp_tools = build_mcp_tools(user_context=user, database_path=repository.path, profile="legacy")
+    return build_unified_agent(tools=mcp_tools, user_context=user)
 
 
 def test_mcp_unified_agent_executes_tool(mcp_unified_agent):
