@@ -1,0 +1,94 @@
+name: Agent quality
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      live:
+        description: Run frozen-v1 real-model gates (uses API tokens)
+        type: boolean
+        default: false
+      framework:
+        description: Collect current sources and run full DeepEval metrics (uses API tokens)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HF_HUB_OFFLINE: '1'
+      TRANSFORMERS_OFFLINE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install -r requirements.txt
+      - run: python -m app.dataset_governance
+      - run: python -m app.quality_gate offline --output reports/offline
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-quality
+          path: reports/
+          if-no-files-found: error
+  framework:
+    if: github.event_name == 'workflow_dispatch' && inputs.framework
+    needs: offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      QWEN_API_KEY: ${{ secrets.QWEN_API_KEY }}
+      DEEPEVAL_TELEMETRY_OPT_OUT: '1'
+      DEEPEVAL_DISABLE_DOTENV: '1'
+      DEEPEVAL_DISABLE_LEGACY_KEYFILE: '1'
+      CONFIDENT_TRACE_SAMPLE_RATE: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install -r requirements.txt
+      - run: python -c "from app.agent_factory import build_knowledge_retriever; build_knowledge_retriever()"
+      - run: python -m app.deepeval_collect --run-models --max-calls 1000 --output reports/framework-sources
+      - run: python -m app.quality_gate framework --run-models --sources reports/framework-sources/sources.json --max-calls 2000 --output reports/framework
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deepeval-quality
+          path: reports/
+          if-no-files-found: error
+  live:
+    if: github.event_name == 'workflow_dispatch' && inputs.live
+    needs: offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      QWEN_API_KEY: ${{ secrets.QWEN_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install -r requirements.txt
+      - run: python -m app.quality_gate live --output reports/live
+      - run: python -m app.tool_control_evaluation --run-models --output reports/identity-permissions --max-calls 220
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-quality
+          path: reports/
+          if-no-files-found: error

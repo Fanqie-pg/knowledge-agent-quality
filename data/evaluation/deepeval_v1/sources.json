@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "rag_direct": "reports/full-evaluation-sol-v1/records.jsonl",
+  "rag_rewrite": "reports/quality-fixes-v3-recovery-final/records.jsonl",
+  "routing": "reports/quality-fixes-v3-recovery-final/records.jsonl",
+  "tools": "reports/deepeval-collect-tools/records.jsonl",
+  "business": "reports/deepeval-collect-business/records.jsonl",
+  "security": "reports/tool-permission-v2-security/records.jsonl",
+  "conversation": ["reports/deepeval-collect-conversation/records.jsonl"]
+}

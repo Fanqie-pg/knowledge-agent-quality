@@ -8,3 +8,6 @@ langchain-huggingface==1.2.2
 sentence-transformers==5.7.0
 openai==2.46.0
 mcp==2.1.1
+deepeval==4.3.4
+# DeepEval click<8.4 conflicts with newer huggingface-hub releases.
+huggingface-hub==1.10.0
